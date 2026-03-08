@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { signIn, signOut, useSession } from "next-auth/react";
+import { DashboardCharts } from "./components/DashboardCharts";
 
 type UploadedFile = {
   id: string;
@@ -267,11 +268,8 @@ export default function Home() {
                 </p>
               ) : (
                 <div>
-                  <h2 className="mb-2 text-lg font-medium">Dashboard</h2>
-                  <p className="text-sm text-gray-600">
-                    A mostrar dados para o ficheiro selecionado. No próximo
-                    passo adicionamos aqui os gráficos e métricas que quiseres.
-                  </p>
+                  <h2 className="mb-4 text-lg font-medium">Dashboard</h2>
+                  <DashboardCharts fileId={activeFileId} />
                 </div>
               )}
             </section>

@@ -69,8 +69,10 @@ function parseXlsxToRows(buffer: ArrayBuffer): AssetRow[] {
   const marketPriceIdx = idx("Market price");
   const purchaseValueIdx = idx("Purchase value");
   const grossPLIdx = idx("Gross P/L");
+  const openTimeIdx = idx("Open time");
 
   const result: AssetRow[] = [];
+  const currentYear = new Date().getFullYear();
 
   for (let i = headerRowIndex + 1; i < rows.length; i++) {
     const row = rows[i] as unknown[];
@@ -90,6 +92,14 @@ function parseXlsxToRows(buffer: ArrayBuffer): AssetRow[] {
     const type =
       typeIdx >= 0 ? String(row[typeIdx] ?? "").trim() || "ETF" : "ETF";
 
+    let year: number | undefined;
+    if (openTimeIdx >= 0) {
+      const raw = String(row[openTimeIdx] ?? "").trim();
+      const match = raw.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+      if (match) year = Number(match[3]);
+    }
+    if (year == null) year = currentYear;
+
     result.push({
       ticker,
       type,
@@ -98,6 +108,7 @@ function parseXlsxToRows(buffer: ArrayBuffer): AssetRow[] {
       investedValue,
       currentValue,
       profitLoss,
+      year,
     });
   }
 
