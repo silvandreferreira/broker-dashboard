@@ -33,9 +33,17 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# broker export sample (may contain personal data)
+xtb.xlsx
+
+# Prisma generated client
+prisma/generated
+
 # vercel
 .vercel
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+/app/generated/prisma
