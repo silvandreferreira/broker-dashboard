@@ -16,47 +16,28 @@ import {
   LineChart,
   Line,
 } from "recharts";
-
-type Summary = {
-  totalUnits: number;
-  totalInvested: number;
-  totalAcc: number;
-  totalEuros: number;
-  profitPercent: number;
-};
-
-type DashboardData = {
-  summary: Summary | null;
-  byCategory: { name: string; value: number; current: number }[];
-  byYear: { year: number; profitPercent: number; invested: number; profit: number }[];
-  byType: { type: string; value: number; percentage: number }[];
-  investedVsProfitByYear: { year: string; investido: number; lucro: number }[];
-  investedAndAccByYear: { year: string; investidoAcumulado: number; acc: number }[];
-  byTicker: { ticker: string; units: number; invested: number; current: number }[];
-  byIndexGroup: { name: string; value: number; current: number }[];
-};
+import { useCache, type DashboardData } from "../contexts/CacheContext";
 
 const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#06b6d4"];
 
 export function DashboardCharts({ fileId }: { fileId: string }) {
-  const [data, setData] = useState<DashboardData | null>(null);
+  const { getDashboardData, loadDashboard } = useCache();
+  const data = getDashboardData(fileId);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (data != null) {
+      setLoading(false);
+      setError(null);
+      return;
+    }
     let cancelled = false;
     setLoading(true);
     setError(null);
-    fetch(`/api/dashboard?fileId=${encodeURIComponent(fileId)}`)
-      .then((res) => {
-        if (!res.ok) throw new Error("Falha ao carregar dashboard");
-        return res.json();
-      })
-      .then((d: DashboardData) => {
-        if (!cancelled) setData(d);
-      })
+    loadDashboard(fileId)
       .catch((e) => {
-        if (!cancelled) setError(e.message);
+        if (!cancelled) setError(e instanceof Error ? e.message : "Falha ao carregar dashboard");
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -64,18 +45,19 @@ export function DashboardCharts({ fileId }: { fileId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [fileId]);
+  }, [fileId, data, loadDashboard]);
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12 text-gray-500">
+      <div className="d-flex align-items-center justify-content-center py-5 text-secondary">
+        <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" />
         A carregar dashboard...
       </div>
     );
   }
   if (error) {
     return (
-      <div className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+      <div className="alert alert-danger py-2 small mb-0">
         {error}
       </div>
     );
@@ -89,39 +71,49 @@ export function DashboardCharts({ fileId }: { fileId: string }) {
   const formatPct = (n: number) => `${n >= 0 ? "" : ""}${n.toFixed(1)}%`;
 
   return (
-    <div className="space-y-8">
+    <div className="d-flex flex-column gap-4">
       {summary && (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-          <div className="rounded-lg border bg-gray-50 p-3">
-            <p className="text-xs font-medium text-gray-500">Total Unidades</p>
-            <p className="text-lg font-semibold">{summary.totalUnits.toFixed(4)}</p>
+        <div className="row row-cols-2 row-cols-sm-5 g-3">
+          <div className="col">
+            <div className="rounded border bg-light p-3">
+              <p className="small fw-medium text-secondary mb-1">Total Unidades</p>
+              <p className="fw-semibold mb-0">{summary.totalUnits.toFixed(2)}</p>
+            </div>
           </div>
-          <div className="rounded-lg border bg-gray-50 p-3">
-            <p className="text-xs font-medium text-gray-500">Total Investido</p>
-            <p className="text-lg font-semibold">{formatEur(summary.totalInvested)}</p>
+          <div className="col">
+            <div className="rounded border bg-light p-3">
+              <p className="small fw-medium text-secondary mb-1">Total Investido</p>
+              <p className="fw-semibold mb-0">{formatEur(summary.totalInvested)}</p>
+            </div>
           </div>
-          <div className="rounded-lg border bg-gray-50 p-3">
-            <p className="text-xs font-medium text-gray-500">Total ACC</p>
-            <p className="text-lg font-semibold">{formatEur(summary.totalAcc)}</p>
+          <div className="col">
+            <div className="rounded border bg-light p-3">
+              <p className="small fw-medium text-secondary mb-1">Total ACC</p>
+              <p className="fw-semibold mb-0">{formatEur(summary.totalAcc)}</p>
+            </div>
           </div>
-          <div className="rounded-lg border bg-gray-50 p-3">
-            <p className="text-xs font-medium text-gray-500">Total €€</p>
-            <p className="text-lg font-semibold">{formatEur(summary.totalEuros)}</p>
+          <div className="col">
+            <div className="rounded border bg-light p-3">
+              <p className="small fw-medium text-secondary mb-1">Total €€</p>
+              <p className="fw-semibold mb-0">{formatEur(summary.totalEuros)}</p>
+            </div>
           </div>
-          <div className="rounded-lg border bg-gray-50 p-3">
-            <p className="text-xs font-medium text-gray-500">Profit %</p>
-            <p className={`text-lg font-semibold ${summary.profitPercent >= 0 ? "text-emerald-600" : "text-red-600"}`}>
-              {formatPct(summary.profitPercent)}
-            </p>
+          <div className="col">
+            <div className="rounded border bg-light p-3">
+              <p className="small fw-medium text-secondary mb-1">Profit %</p>
+              <p className={`fw-semibold mb-0 ${summary.profitPercent >= 0 ? "text-success" : "text-danger"}`}>
+                {formatPct(summary.profitPercent)}
+              </p>
+            </div>
           </div>
         </div>
       )}
 
       {byIndexGroup.length > 0 && (
-        <div className="rounded-lg border bg-white p-4">
-          <h3 className="mb-3 text-sm font-semibold text-gray-800">Percentagem por índice (ETFs agrupados)</h3>
-          <p className="mb-2 text-xs text-gray-500">
-            ETFs que replicam o mesmo índice (ex.: SXR8 + VUAA → S&P 500) estão agrupados. O mapeamento está em <code className="rounded bg-gray-100 px-1">lib/etfIndexGroups.ts</code>.
+        <div className="rounded border bg-white p-4">
+          <h3 className="h6 mb-3">Percentagem por índice (ETFs agrupados)</h3>
+          <p className="small text-muted mb-2">
+            ETFs que replicam o mesmo índice (ex.: SXR8 + VUAA → S&P 500) estão agrupados. O mapeamento está em <code className="rounded bg-light px-1">lib/etfIndexGroups.ts</code>.
           </p>
           <ResponsiveContainer width="100%" height={280}>
             <PieChart>
@@ -145,8 +137,8 @@ export function DashboardCharts({ fileId }: { fileId: string }) {
       )}
 
       {byYear.length > 0 && (
-        <div className="rounded-lg border bg-white p-4">
-          <h3 className="mb-3 text-sm font-semibold text-gray-800">b. % de profit por ano</h3>
+        <div className="rounded border bg-white p-4">
+          <h3 className="h6 mb-3">b. % de profit por ano</h3>
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={byYear.map((d) => ({ ...d, year: String(d.year), profitPct: d.profitPercent }))}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -160,8 +152,8 @@ export function DashboardCharts({ fileId }: { fileId: string }) {
       )}
 
       {byType.length > 0 && (
-        <div className="rounded-lg border bg-white p-4">
-          <h3 className="mb-3 text-sm font-semibold text-gray-800">c. Tipo de investimento (ETFs, Ações, etc.)</h3>
+        <div className="rounded border bg-white p-4">
+          <h3 className="h6 mb-3">c. Tipo de investimento (ETFs, Ações, etc.)</h3>
           <ResponsiveContainer width="100%" height={280}>
             <PieChart>
               <Pie
@@ -180,15 +172,15 @@ export function DashboardCharts({ fileId }: { fileId: string }) {
               <Tooltip formatter={(v: number) => `${v.toFixed(1)}%`} />
             </PieChart>
           </ResponsiveContainer>
-          <p className="mt-1 text-xs text-gray-500">
+          <p className="small text-muted mt-1 mb-0">
             Emergency fund (euros não investidos) não está no export XTB; podes contabilizá-lo à parte.
           </p>
         </div>
       )}
 
       {investedVsProfitByYear.length > 0 && (
-        <div className="rounded-lg border bg-white p-4">
-          <h3 className="mb-3 text-sm font-semibold text-gray-800">d. Investido vs lucro por ano</h3>
+        <div className="rounded border bg-white p-4">
+          <h3 className="h6 mb-3">d. Investido vs lucro por ano</h3>
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={investedVsProfitByYear}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -208,8 +200,8 @@ export function DashboardCharts({ fileId }: { fileId: string }) {
       )}
 
       {investedAndAccByYear.length > 0 && (
-        <div className="rounded-lg border bg-white p-4">
-          <h3 className="mb-3 text-sm font-semibold text-gray-800">e. Investido acumulado vs ACC (dinheiro meu vs juros compostos)</h3>
+        <div className="rounded border bg-white p-4">
+          <h3 className="h6 mb-3">e. Investido acumulado vs ACC (dinheiro meu vs juros compostos)</h3>
           <ResponsiveContainer width="100%" height={260}>
             <LineChart data={investedAndAccByYear}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -225,8 +217,8 @@ export function DashboardCharts({ fileId }: { fileId: string }) {
       )}
 
       {byTicker.length > 0 && (
-        <div className="rounded-lg border bg-white p-4">
-          <h3 className="mb-3 text-sm font-semibold text-gray-800">f. Unidades por ticker</h3>
+        <div className="rounded border bg-white p-4">
+          <h3 className="h6 mb-3">f. Unidades por ticker</h3>
           <ResponsiveContainer width="100%" height={280}>
             <BarChart data={byTicker} layout="vertical" margin={{ left: 60 }}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -240,7 +232,7 @@ export function DashboardCharts({ fileId }: { fileId: string }) {
       )}
 
       {!summary && byIndexGroup.length === 0 && byYear.length === 0 && (
-        <p className="text-sm text-gray-500">Sem dados para o ficheiro selecionado.</p>
+        <p className="small text-muted mb-0">Sem dados para o ficheiro selecionado.</p>
       )}
     </div>
   );
