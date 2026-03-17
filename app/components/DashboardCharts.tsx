@@ -130,7 +130,11 @@ export function DashboardCharts({ fileId }: { fileId: string }) {
                   <Cell key={i} fill={COLORS[i % COLORS.length]} />
                 ))}
               </Pie>
-              <Tooltip formatter={(v: number) => `${v.toFixed(1)}%`} />
+              <Tooltip
+                formatter={(v) =>
+                  typeof v === "number" ? `${v.toFixed(1)}%` : `${v ?? ""}`
+                }
+              />
             </PieChart>
           </ResponsiveContainer>
         </div>
@@ -144,7 +148,12 @@ export function DashboardCharts({ fileId }: { fileId: string }) {
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="year" />
               <YAxis tickFormatter={(v) => `${v}%`} />
-              <Tooltip formatter={(v: number) => [`${v.toFixed(1)}%`, "Profit %"]} />
+              <Tooltip
+                formatter={(v) => [
+                  typeof v === "number" ? `${v.toFixed(1)}%` : `${v ?? ""}`,
+                  "Profit %",
+                ]}
+              />
               <Bar dataKey="profitPct" fill="#3b82f6" name="Profit %" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
@@ -163,13 +172,19 @@ export function DashboardCharts({ fileId }: { fileId: string }) {
                 cx="50%"
                 cy="50%"
                 outerRadius={90}
-                label={({ type, percentage }) => `${type} ${percentage.toFixed(0)}%`}
+                label={({ name, value }) =>
+                  `${name ?? ""} ${typeof value === "number" ? value.toFixed(0) : ""}%`
+                }
               >
                 {byType.map((_, i) => (
                   <Cell key={i} fill={COLORS[i % COLORS.length]} />
                 ))}
               </Pie>
-              <Tooltip formatter={(v: number) => `${v.toFixed(1)}%`} />
+              <Tooltip
+                formatter={(v) =>
+                  typeof v === "number" ? `${v.toFixed(1)}%` : `${v ?? ""}`
+                }
+              />
             </PieChart>
           </ResponsiveContainer>
           <p className="small text-muted mt-1 mb-0">
@@ -186,7 +201,9 @@ export function DashboardCharts({ fileId }: { fileId: string }) {
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="year" />
               <YAxis tickFormatter={(v) => `€${v}`} />
-              <Tooltip formatter={(v: number) => [formatEur(v), ""]} />
+              <Tooltip
+                formatter={(v) => [typeof v === "number" ? formatEur(v) : `${v ?? ""}`, ""]}
+              />
               <Legend />
               <Bar dataKey="investido" fill="#6366f1" name="Investido" radius={[4, 4, 0, 0]} />
               <Bar dataKey="lucro" name="Lucro" radius={[4, 4, 0, 0]}>
@@ -207,7 +224,9 @@ export function DashboardCharts({ fileId }: { fileId: string }) {
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="year" />
               <YAxis tickFormatter={(v) => `€${v}`} />
-              <Tooltip formatter={(v: number) => [formatEur(v), ""]} />
+              <Tooltip
+                formatter={(v) => [typeof v === "number" ? formatEur(v) : `${v ?? ""}`, ""]}
+              />
               <Legend />
               <Line type="monotone" dataKey="investidoAcumulado" stroke="#6366f1" name="Investido acumulado" strokeWidth={2} dot />
               <Line type="monotone" dataKey="acc" stroke="#10b981" name="ACC (valor atual)" strokeWidth={2} dot />
@@ -224,7 +243,12 @@ export function DashboardCharts({ fileId }: { fileId: string }) {
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis type="number" tickFormatter={(v) => v.toFixed(2)} />
               <YAxis type="category" dataKey="ticker" width={56} />
-              <Tooltip formatter={(v: number) => [v.toFixed(4), "Unidades"]} />
+              <Tooltip
+                formatter={(v) => [
+                  typeof v === "number" ? v.toFixed(4) : `${v ?? ""}`,
+                  "Unidades",
+                ]}
+              />
               <Bar dataKey="units" fill="#0ea5e9" name="Unidades" radius={[0, 4, 4, 0]} />
             </BarChart>
           </ResponsiveContainer>

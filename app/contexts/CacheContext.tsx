@@ -53,6 +53,7 @@ type CacheContextValue = {
   updateFilesInCache: (data: FilesResponse) => void;
   getDashboardData: (fileId: string) => DashboardData | null;
   loadDashboard: (fileId: string) => Promise<void>;
+  invalidateDashboard: (fileId: string) => void;
   clearCache: () => void;
 };
 
@@ -96,6 +97,15 @@ export function CacheProvider({ children }: { children: ReactNode }) {
     }));
   }, [state.dashboard]);
 
+  const invalidateDashboard = useCallback((fileId: string) => {
+    setState((s) => {
+      if (s.dashboard[fileId] == null) return s;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { [fileId]: _, ...rest } = s.dashboard;
+      return { ...s, dashboard: rest };
+    });
+  }, []);
+
   const clearCache = useCallback(() => {
     setState({ files: null, dashboard: {} });
   }, []);
@@ -108,6 +118,7 @@ export function CacheProvider({ children }: { children: ReactNode }) {
       updateFilesInCache,
       getDashboardData,
       loadDashboard,
+      invalidateDashboard,
       clearCache,
     }),
     [
@@ -117,6 +128,7 @@ export function CacheProvider({ children }: { children: ReactNode }) {
       updateFilesInCache,
       getDashboardData,
       loadDashboard,
+      invalidateDashboard,
       clearCache,
     ],
   );

@@ -20,6 +20,10 @@ model User {
   emailVerified DateTime?
   image         String?
 
+  accessApproved    Boolean   @default(false)
+  accessRequestedAt DateTime  @default(now())
+  accessApprovedAt  DateTime?
+
   accounts Account[]
   sessions Session[]
 

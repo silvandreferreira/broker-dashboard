@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { isAdminEmail } from "@/lib/access";
 import { prisma } from "@/lib/prisma";
 import type { Session } from "next-auth";
 
@@ -9,6 +10,11 @@ export async function GET() {
 
   if (!session?.user?.email) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const isAdmin = isAdminEmail(session.user.email);
+  if (!isAdmin && session.user.accessApproved !== true) {
+    return NextResponse.json({ error: "Access pending approval" }, { status: 403 });
   }
 
   const user = await prisma.user.findUnique({

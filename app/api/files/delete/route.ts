@@ -7,7 +7,6 @@ import type { Session } from "next-auth";
 
 export async function POST(req: NextRequest) {
   const session: Session | null = await getServerSession(authOptions);
-
   if (!session?.user?.email) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -17,8 +16,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Access pending approval" }, { status: 403 });
   }
 
-  const { fileId } = await req.json();
-
+  const body = (await req.json().catch(() => null)) as { fileId?: string } | null;
+  const fileId = body?.fileId;
   if (!fileId) {
     return NextResponse.json({ error: "Missing fileId" }, { status: 400 });
   }
@@ -27,36 +26,38 @@ export async function POST(req: NextRequest) {
     where: { email: session.user.email },
     select: { id: true },
   });
-
   if (!user) {
-    return NextResponse.json(
-      { error: "User not found" },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "User not found" }, { status: 400 });
   }
 
   const file = await prisma.uploadedFile.findFirst({
     where: { id: fileId, userId: user.id },
     select: { id: true },
   });
-
   if (!file) {
-    return NextResponse.json(
-      { error: "File not found" },
-      { status: 404 },
-    );
+    return NextResponse.json({ error: "File not found" }, { status: 404 });
   }
 
   await prisma.$transaction(async (tx) => {
-    await tx.uploadedFile.updateMany({
-      where: { userId: user.id, isActive: true },
-      data: { isActive: false },
+    await tx.asset.deleteMany({ where: { fileId } });
+    await tx.uploadedFile.delete({ where: { id: fileId } });
+
+    const latest = await tx.uploadedFile.findFirst({
+      where: { userId: user.id },
+      orderBy: { uploadedAt: "desc" },
+      select: { id: true },
     });
 
-    await tx.uploadedFile.update({
-      where: { id: fileId },
-      data: { isActive: true },
-    });
+    if (latest) {
+      await tx.uploadedFile.updateMany({
+        where: { userId: user.id },
+        data: { isActive: false },
+      });
+      await tx.uploadedFile.update({
+        where: { id: latest.id },
+        data: { isActive: true },
+      });
+    }
   });
 
   return NextResponse.json({ ok: true });

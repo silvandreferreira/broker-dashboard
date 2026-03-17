@@ -4,6 +4,8 @@ import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { useCache } from "./contexts/CacheContext";
+import { AdminPanel } from "./components/AdminPanel";
+import { ADMIN_EMAIL } from "@/lib/access";
 
 const DashboardCharts = dynamic(
   () =>
@@ -26,17 +28,21 @@ export default function Home() {
     loadFiles,
     invalidateFiles,
     updateFilesInCache,
+    invalidateDashboard,
     clearCache,
   } = useCache();
-  const [activeTab, setActiveTab] = useState<"upload" | "dashboard">("upload");
+  const [activeTab, setActiveTab] = useState<"upload" | "dashboard" | "admin">("upload");
   const [isLoadingFiles, setIsLoadingFiles] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectingFileId, setSelectingFileId] = useState<string | null>(null);
   const [selectProgress, setSelectProgress] = useState(0);
+  const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
 
   const files = cachedFiles?.files ?? [];
   const activeFileId = cachedFiles?.activeFileId ?? null;
+  const isAdmin = (session?.user?.email ?? "").toLowerCase() === ADMIN_EMAIL.toLowerCase();
+  const isApproved = isAdmin || session?.user?.accessApproved === true;
 
   useEffect(() => {
     if (!session?.user) {
@@ -148,6 +154,37 @@ export default function Home() {
     }
   };
 
+  const handleDeleteFile = async (id: string) => {
+    if (selectingFileId || deletingFileId) return;
+    const file = files.find((f) => f.id === id);
+    const ok = window.confirm(
+      `Delete file “${file?.fileName ?? "this file"}”?\n\nThis will remove all associated data from the database.`,
+    );
+    if (!ok) return;
+
+    setDeletingFileId(id);
+    setError(null);
+    try {
+      const res = await fetch("/api/files/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileId: id }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to delete file");
+      }
+      invalidateDashboard(id);
+      invalidateFiles();
+      await loadFiles();
+    } catch (e: unknown) {
+      console.error(e);
+      setError(e instanceof Error ? e.message : "Error deleting file.");
+    } finally {
+      setDeletingFileId(null);
+    }
+  };
+
   if (!session) {
     return (
       <div className="container py-5">
@@ -167,6 +204,38 @@ export default function Home() {
                 >
                   <i className="bi bi-google me-2" />
                   Entrar com Google
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isApproved) {
+    return (
+      <div className="container py-5">
+        <div className="row justify-content-center">
+          <div className="col-12 col-md-9 col-lg-7">
+            <div className="card border-0 shadow-sm">
+              <div className="card-body p-4 p-md-5 text-center">
+                <i className="bi bi-hourglass-split display-5 text-primary mb-3" />
+                <h1 className="h4 mb-2">
+                  Hello {session.user?.name ?? "there"}
+                </h1>
+                <p className="text-muted mb-0">
+                  Your access request has been submitted. You will be able to use the app soon.
+                </p>
+              </div>
+              <div className="card-footer bg-white text-center">
+                <button
+                  type="button"
+                  className="btn btn-outline-secondary btn-sm"
+                  onClick={() => signOut()}
+                >
+                  <i className="bi bi-box-arrow-right me-1" />
+                  Sign out
                 </button>
               </div>
             </div>
@@ -208,6 +277,18 @@ export default function Home() {
             Dashboard
           </button>
         </li>
+        {isAdmin && (
+          <li className="nav-item" role="presentation">
+            <button
+              type="button"
+              className={`nav-link ${activeTab === "admin" ? "active" : ""}`}
+              onClick={() => setActiveTab("admin")}
+            >
+              <i className="bi bi-shield-lock me-1" />
+              Admin
+            </button>
+          </li>
+        )}
       </ul>
 
       {error && (
@@ -302,22 +383,22 @@ export default function Home() {
                             {new Date(file.uploadedAt).toLocaleString()} · {file._count.assets} linhas
                           </div>
                         </div>
-                        <div className="mt-2 mt-md-0 flex-shrink-0">
+                        <div className="mt-2 mt-md-0 flex-shrink-0 d-flex flex-column flex-md-row gap-2">
                           <button
                             type="button"
                             onClick={() => handleSelectFile(file.id)}
-                            disabled={selectingFileId !== null}
+                            disabled={selectingFileId !== null || deletingFileId !== null}
                             className={`btn btn-sm position-relative overflow-hidden w-100 w-md-auto ${
                               file.id === selectingFileId
                                 ? "text-white border border-dark"
                                 : activeFileId === file.id
-                                  ? "btn-dark"
+                                  ? "btn-primary"
                                   : "btn-outline-secondary"
-                            }`}
+                            } text-nowrap`}
                             style={
                               file.id === selectingFileId
-                                ? { backgroundColor: "#212529", minWidth: 140 }
-                                : undefined
+                                ? { backgroundColor: "#212529", minWidth: 160 }
+                                : { minWidth: 140 }
                             }
                           >
                             {file.id === selectingFileId ? (
@@ -334,7 +415,30 @@ export default function Home() {
                                 </span>
                               </>
                             ) : (
-                              "Ver na dashboard"
+                              <>
+                                <i className="bi bi-bar-chart me-1" />
+                                Dashboard
+                              </>
+                            )}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => void handleDeleteFile(file.id)}
+                            disabled={selectingFileId !== null || deletingFileId !== null}
+                            className="btn btn-sm btn-outline-danger w-100 w-md-auto"
+                            title="Delete file data from database"
+                          >
+                            {deletingFileId === file.id ? (
+                              <>
+                                <span className="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true" />
+                                Deleting…
+                              </>
+                            ) : (
+                              <>
+                                <i className="bi bi-trash me-1" />
+                                Delete
+                              </>
                             )}
                           </button>
                         </div>
@@ -367,6 +471,10 @@ export default function Home() {
             )}
           </div>
         </div>
+      )}
+
+      {activeTab === "admin" && isAdmin && (
+        <AdminPanel />
       )}
     </div>
   );

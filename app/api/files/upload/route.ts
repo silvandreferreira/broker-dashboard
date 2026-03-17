@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import * as XLSX from "xlsx";
 import { authOptions } from "@/lib/auth";
+import { isAdminEmail } from "@/lib/access";
 import { prisma } from "@/lib/prisma";
 import type { Session } from "next-auth";
 
@@ -120,6 +121,11 @@ export async function POST(req: NextRequest) {
 
   if (!session?.user?.email) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const isAdmin = isAdminEmail(session.user.email);
+  if (!isAdmin && session.user.accessApproved !== true) {
+    return NextResponse.json({ error: "Access pending approval" }, { status: 403 });
   }
 
   const formData = await req.formData();
