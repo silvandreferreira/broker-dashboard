@@ -376,9 +376,6 @@ export default function Home() {
                           >
                             {file.fileName}
                           </div>
-                          {file.isActive && (
-                            <span className="badge bg-success mt-1 d-inline-block">ativo</span>
-                          )}
                           <div className="small text-muted mt-1">
                             {new Date(file.uploadedAt).toLocaleString()} · {file._count.assets} linhas
                           </div>
