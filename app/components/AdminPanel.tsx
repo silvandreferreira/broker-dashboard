@@ -158,7 +158,7 @@ export function AdminPanel() {
                   <th>Name</th>
                   <th>Email</th>
                   <th>Status</th>
-                  <th className="text-end">Allow</th>
+                  <th className="text-end">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -182,22 +182,32 @@ export function AdminPanel() {
                       >
                         {u.statusLabel}
                       </span>
-                    </td>
-                    <td className="text-end">
-                      <div className="form-check form-switch d-inline-flex align-items-center justify-content-end gap-2 mb-0">
-                        <input
-                          className="form-check-input"
-                          type="checkbox"
-                          role="switch"
-                          checked={u.accessApproved}
-                          disabled={savingUserId !== null || u.statusLabel === "Admin"}
-                          onChange={(e) => void toggle(u.id, e.target.checked)}
-                        />
-                        {savingUserId === u.id && (
-                          <span className="spinner-border spinner-border-sm text-secondary" role="status" aria-hidden="true" />
-                        )}
-                      </div>
-                    </td>
+                    </td>          <td className="text-end">
+            <div className="d-flex justify-content-end align-items-center gap-2">
+              <div className="form-check form-switch d-inline-flex align-items-center justify-content-end gap-2 mb-0">
+                <input
+                  className="form-check-input"
+                  type="checkbox"
+                  role="switch"
+                  checked={u.accessApproved}
+                  disabled={savingUserId !== null || u.statusLabel === "Admin"}
+                  onChange={(e) => void toggle(u.id, e.target.checked)}
+                />
+                {savingUserId === u.id && (
+                  <span className="spinner-border spinner-border-sm text-secondary" role="status" aria-hidden="true" />
+                )}
+              </div>
+              {u.statusLabel !== "Admin" && (
+                <button
+                  type="button"
+                  className="btn btn-sm btn-outline-danger"
+                  onClick={() => void handleDeleteUser(u.id)}
+                >
+                  <i className="bi bi-trash" />
+                </button>
+              )}
+            </div>
+          </td>
                   </tr>
                 ))}
                 {rows.length === 0 && (

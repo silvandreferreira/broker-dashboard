@@ -1,4 +1,0 @@
--- AlterTable
-ALTER TABLE "User" ADD COLUMN     "accessApproved" BOOLEAN NOT NULL DEFAULT false,
-ADD COLUMN     "accessApprovedAt" TIMESTAMP(3),
-ADD COLUMN     "accessRequestedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
