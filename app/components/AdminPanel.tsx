@@ -109,6 +109,35 @@ export function AdminPanel() {
     }
   };
 
+  const handleDeleteUser = async (userId: string) => {
+    if (savingUserId) return;
+    if (
+      !window.confirm(
+        "Remove this user from the database? They can sign in again later as a new registration.",
+      )
+    ) {
+      return;
+    }
+    setSavingUserId(userId);
+    setError(null);
+    try {
+      const res = await fetch("/api/admin/users/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+      });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(data.error || "Failed to delete user");
+      }
+      setUsers((prev) => prev.filter((u) => u.id !== userId));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to delete user");
+    } finally {
+      setSavingUserId(null);
+    }
+  };
+
   return (
     <div className="card border shadow-sm">
       <div className="card-header bg-white d-flex align-items-center justify-content-between">
@@ -201,7 +230,9 @@ export function AdminPanel() {
                 <button
                   type="button"
                   className="btn btn-sm btn-outline-danger"
+                  disabled={savingUserId !== null}
                   onClick={() => void handleDeleteUser(u.id)}
+                  aria-label="Delete user"
                 >
                   <i className="bi bi-trash" />
                 </button>
