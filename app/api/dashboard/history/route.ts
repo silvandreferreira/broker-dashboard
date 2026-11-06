@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { isAdminEmail } from "@/lib/access";
 import { prisma } from "@/lib/prisma";
+import { dashboardAssetWhere, parseIncludePlans } from "@/lib/assetFilter";
 import { getDailyClosesEur } from "@/lib/yahoo";
 import { monthlyHistory, yearlyHistory, type HistoryLot } from "@/lib/portfolioHistory";
 
@@ -19,7 +20,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Access pending approval" }, { status: 403 });
   }
 
-  const fileId = new URL(req.url).searchParams.get("fileId");
+  const { searchParams } = new URL(req.url);
+  const fileId = searchParams.get("fileId");
+  const includePlans = parseIncludePlans(searchParams);
   if (!fileId) {
     return NextResponse.json({ error: "Missing fileId" }, { status: 400 });
   }
@@ -30,7 +33,7 @@ export async function GET(req: NextRequest) {
       uploadedAt: true,
       reportDate: true,
       assets: {
-        where: { category: "ETF" },
+        where: dashboardAssetWhere(includePlans),
         select: { ticker: true, quantity: true, investedValue: true, currentValue: true, openedAt: true },
       },
     },

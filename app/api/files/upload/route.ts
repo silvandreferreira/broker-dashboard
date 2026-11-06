@@ -53,9 +53,7 @@ export async function POST(req: NextRequest) {
       parsed.error ??
       (skippedTickers.length > 0
         ? `Nenhum ETF encontrado (ignorados: ${skippedTickers.join(", ")}).`
-        : parsed.skippedInvestmentPlanLots > 0
-          ? "Só foram encontradas posições de planos de investimento (ignoradas)."
-          : "Nenhuma posição aberta encontrada.");
+        : "Nenhuma posição aberta encontrada.");
     return NextResponse.json(
       {
         error: `XLSX sem dados: ${reason} Exporta o relatório do Histórico do xStation 5 em Excel (.xlsx).`,
@@ -105,6 +103,7 @@ export async function POST(req: NextRequest) {
         profitLoss: r.profitLoss,
         year: r.year ?? null,
         openedAt: r.openedAt ?? null,
+        product: r.product,
       })),
     });
 
@@ -115,6 +114,6 @@ export async function POST(req: NextRequest) {
     fileId: created.id,
     rows: rows.length,
     skippedTickers,
-    skippedInvestmentPlanLots: parsed.skippedInvestmentPlanLots,
+    investmentPlanLots: parsed.investmentPlanLots,
   });
 }

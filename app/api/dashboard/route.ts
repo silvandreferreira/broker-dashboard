@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { getDisplayNameForTicker } from "@/lib/etfIndexGroups";
 import { isAdminEmail } from "@/lib/access";
 import { prisma } from "@/lib/prisma";
+import { INVESTMENT_PLAN, dashboardAssetWhere, parseIncludePlans } from "@/lib/assetFilter";
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -18,6 +19,7 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   let fileId = searchParams.get("fileId");
+  const includePlans = parseIncludePlans(searchParams);
 
   if (!fileId) {
     const active = await prisma.uploadedFile.findFirst({
@@ -47,14 +49,18 @@ export async function GET(req: NextRequest) {
   }
 
   // Só ETFs (ver lib/xtbParser.ts). Ficheiros carregados com o parser antigo não têm categoria.
-  const [assets, totalAssets] = await Promise.all([
-    prisma.asset.findMany({ where: { fileId, file: { userId: user.id }, category: "ETF" } }),
-    prisma.asset.count({ where: { fileId, file: { userId: user.id } } }),
+  const fileWhere = { fileId, file: { userId: user.id } };
+  const [assets, totalAssets, etfAssets, planAssets] = await Promise.all([
+    prisma.asset.findMany({ where: { ...fileWhere, ...dashboardAssetWhere(includePlans) } }),
+    prisma.asset.count({ where: fileWhere }),
+    prisma.asset.count({ where: { ...fileWhere, category: "ETF" } }),
+    prisma.asset.count({ where: { ...fileWhere, category: "ETF", product: INVESTMENT_PLAN } }),
   ]);
 
-  if (assets.length === 0 && totalAssets > 0) {
+  if (etfAssets === 0 && totalAssets > 0) {
     return NextResponse.json({
       needsReupload: true,
+      hasInvestmentPlans: false,
       summary: null,
       byCategory: [],
       byYear: [],
@@ -65,6 +71,7 @@ export async function GET(req: NextRequest) {
   }
 
   const etfCount = new Set(assets.map((a) => a.ticker)).size;
+  const totalUnits = assets.reduce((s, a) => s + a.quantity, 0);
   const totalInvested = assets.reduce((s, a) => s + a.investedValue, 0);
   const totalCurrent = assets.reduce((s, a) => s + a.currentValue, 0);
   const totalProfit = totalCurrent - totalInvested;
@@ -72,6 +79,7 @@ export async function GET(req: NextRequest) {
 
   const summary = {
     etfCount,
+    totalUnits,
     totalInvested,
     totalAcc: totalCurrent - totalInvested,
     totalEuros: totalCurrent,
@@ -149,6 +157,7 @@ export async function GET(req: NextRequest) {
     .sort((a, b) => b.value - a.value);
 
   return NextResponse.json({
+    hasInvestmentPlans: planAssets > 0,
     summary,
     byCategory,
     byYear,

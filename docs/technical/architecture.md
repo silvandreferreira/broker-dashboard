@@ -64,7 +64,7 @@ All routes that require an authenticated user use `getServerSession(authOptions)
 | POST | `/api/files/upload` | Body: FormData with XLSX file. Parses sheet "Open Positions" (ETFs only, via `lib/xtbParser.ts`), persists to `UploadedFile` + `Asset`; only allowed for approved users or admin. |
 | POST | `/api/files/select` | Body: `{ fileId }`. Marks a file as active (`isActive`) for the user; only allowed for approved users or admin. |
 | POST | `/api/files/delete` | Body: `{ fileId }`. Deletes the file and its assets, then marks the most recently uploaded remaining file as active (if any). |
-| GET | `/api/dashboard?fileId=...` | Dashboard data: summary, byCategory, byYear, investedVsProfitByYear, byTicker, byIndexGroup (grouped ETFs via `lib/etfIndexGroups.ts`); only for approved users or admin. |
+| GET | `/api/dashboard?fileId=...&includePlans=true|false` | Dashboard data (filter via `lib/assetFilter.ts`, `includePlans` defaults to true): summary, byCategory, byYear, investedVsProfitByYear, byTicker, byIndexGroup (grouped ETFs via `lib/etfIndexGroups.ts`); only for approved users or admin. |
 | GET | `/api/dashboard/history?fileId=...` | Monthly (report year) and yearly portfolio history using Yahoo Finance prices (`lib/yahoo.ts`, `lib/portfolioHistory.ts`); prices cached in `PriceHistory`. Returns `needsReupload` for files uploaded before `openedAt` existed. |
 | GET | `/api/admin/users` | Admin-only: list of users who tried to sign in, with access flags and timestamps. |
 | POST | `/api/admin/users/toggle` | Admin-only: approve/revoke user access (`accessApproved`, `accessApprovedAt`). |
@@ -82,7 +82,7 @@ All routes that require an authenticated user use `getServerSession(authOptions)
 - **UploadedFile**: `id`, `fileName`, `uploadedAt`, `isActive`, `userId`; relation to `Asset[]`.
 - **PriceHistory**: Yahoo Finance cache, one row per Yahoo symbol: `symbol` (PK), `currency`, `fromDate`, `closes` (JSON `[["YYYY-MM-DD", closeEur], ...]`), `fetchedAt`. Refreshed when older than 12h or when it doesn't cover the requested start date.
 - **UploadedFile.reportDate**: XTB report generation date (defines the file's year).
-- **Asset**: per XLSX lot (`openedAt` = full open time UTC): `ticker`, `name`, `category`, `type`, `quantity`, `avgPrice`, `investedValue`, `currentValue`, `profitLoss`, `year`, `fileId`.
+- **Asset**: per XLSX lot (`openedAt` = full open time UTC; `product` = "My Trades" | "Investment Plan", null for old uploads): `ticker`, `name`, `category`, `type`, `quantity`, `avgPrice`, `investedValue`, `currentValue`, `profitLoss`, `year`, `fileId`.
 
 The active file is the single `UploadedFile` with `isActive === true` for that `userId` (select logic and `delete` route keep this invariant).
 

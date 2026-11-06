@@ -23,7 +23,7 @@ Documentation of **Broker Dashboard** functionality and requirements, organised 
 |-------------|-------------|
 | **Format** | Only **XLSX** files (export from XTB broker). |
 | **Sheet and columns** | XTB report exported from xStation 5 → History → Export (Excel). Reads sheet **"Open Positions"**; columns used: Ticker, Instrument/Position, Category, Type, Volume, Value, Open price, Open time (UTC), Gross Profit. Only lot rows (Type = BUY/SELL) are read; per-ticker summary rows are used only for category and name. |
-| **My Trades only** | Lots whose Product is **Investment Plan** (automatic investment plans) are ignored; only **My Trades** lots are imported. Count returned as `skippedInvestmentPlanLots`. |
+| **Investment plans** | Lots are tagged with their Product (**My Trades** or **Investment Plan**, column `Asset.product`). A **"Incluir planos de investimento"** switch on the dashboard (default **on**) includes/excludes plan lots in all figures and charts. The choice is kept in `sessionStorage` for the browser session (survives reloads, not "Limpar cache") and resets to on at logout. Old uploads (no product) count as My Trades. |
 | **ETFs only** | Only instruments with Category **ETF** are imported. Stocks, ETCs, etc. are ignored (listed in the upload response as `skippedTickers`). |
 | **Values** | Current value = `Value`; profit = `Gross Profit`; invested = `Value − Gross Profit` (always in account currency, even for instruments quoted in USD). |
 | **One file per year** | The intended use is one XTB export per year; the user picks which file the dashboard shows. |
@@ -53,7 +53,7 @@ Documentation of **Broker Dashboard** functionality and requirements, organised 
 | Requirement | Description |
 |-------------|-------------|
 | **Data source** | All values and charts are based on the selected **active file**, **ETFs only** (assets with category `ETF`). Files uploaded with the old parser (no category) show a message asking to re-upload. |
-| **Summary** | Block with: Number of ETFs (distinct tickers), Total Invested, Total ACC, Total €€, Profit %. |
+| **Summary** | Block with: Number of ETFs (distinct tickers), Total units, Total Invested, Total ACC, Total €€, Profit %. |
 | **Total ACC** | Defined as **Total €€ − Total Invested** (current value minus capital invested). |
 | **Charts** | (a) Percentage by index (ETFs grouped); (b) % profit by purchase year (current profit of lots bought in each year); (d) Invested vs profit by year; (e) Accumulated invested vs portfolio value at each year end (ACC = gap between lines; from `/api/dashboard/history`, Yahoo prices); (f) Units per ETF table (name, ticker, units, invested, value, profit), sorted by value. |
 | **Grouped ETFs** | "Percentage by index (ETFs grouped)" chart: ETFs tracking the same index (e.g. SXR8 + VUAA → S&P 500) are grouped; mapping configurable in code (e.g. S&P 500, MSCI World, All-World, MSCI Europe, Emerging Markets, US Tech). |

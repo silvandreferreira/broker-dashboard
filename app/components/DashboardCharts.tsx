@@ -20,7 +20,7 @@ import { HistoryCharts } from "./HistoryCharts";
 const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#06b6d4"];
 
 export function DashboardCharts({ fileId }: { fileId: string }) {
-  const { getDashboardData, loadDashboard } = useCache();
+  const { getDashboardData, loadDashboard, includePlans, setIncludePlans } = useCache();
   const data = getDashboardData(fileId);
   const [error, setError] = useState<{ fileId: string; message: string } | null>(null);
   const currentError = error?.fileId === fileId ? error.message : null;
@@ -39,11 +39,37 @@ export function DashboardCharts({ fileId }: { fileId: string }) {
     };
   }, [fileId, data, loadDashboard]);
 
+  const planToggle = (
+    <div className="d-flex flex-wrap align-items-center gap-2">
+      <div className="form-check form-switch mb-0">
+        <input
+          className="form-check-input"
+          type="checkbox"
+          role="switch"
+          id="include-plans"
+          checked={includePlans}
+          onChange={(e) => setIncludePlans(e.target.checked)}
+        />
+        <label className="form-check-label small" htmlFor="include-plans">
+          Incluir planos de investimento
+        </label>
+      </div>
+      {data?.hasInvestmentPlans === false && (
+        <span className="small text-muted">
+          (este ficheiro não tem posições de planos de investimento)
+        </span>
+      )}
+    </div>
+  );
+
   if (loading) {
     return (
-      <div className="d-flex align-items-center justify-content-center py-5 text-secondary">
-        <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" />
-        A carregar dashboard...
+      <div className="d-flex flex-column gap-3">
+        {planToggle}
+        <div className="d-flex align-items-center justify-content-center py-5 text-secondary">
+          <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" />
+          A carregar dashboard...
+        </div>
       </div>
     );
   }
@@ -68,12 +94,20 @@ export function DashboardCharts({ fileId }: { fileId: string }) {
 
   return (
     <div className="d-flex flex-column gap-4">
+      {planToggle}
+
       {summary && (
-        <div className="row row-cols-2 row-cols-sm-5 g-3">
+        <div className="row row-cols-2 row-cols-sm-3 row-cols-lg-6 g-3">
           <div className="col">
             <div className="rounded border bg-light p-3">
               <p className="small fw-medium text-secondary mb-1">N.º de ETFs</p>
               <p className="fw-semibold mb-0">{summary.etfCount}</p>
+            </div>
+          </div>
+          <div className="col">
+            <div className="rounded border bg-light p-3">
+              <p className="small fw-medium text-secondary mb-1">Total de unidades</p>
+              <p className="fw-semibold mb-0">{formatUnits(summary.totalUnits)}</p>
             </div>
           </div>
           <div className="col">

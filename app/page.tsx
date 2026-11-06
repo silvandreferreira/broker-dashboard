@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import { signIn, signOut, useSession } from "next-auth/react";
-import { useCache } from "./contexts/CacheContext";
+import { useCache, resetIncludePlans } from "./contexts/CacheContext";
 import { AdminPanel } from "./components/AdminPanel";
 import { ADMIN_EMAIL } from "@/lib/access";
 
@@ -232,7 +232,10 @@ export default function Home() {
                 <button
                   type="button"
                   className="btn btn-outline-secondary btn-sm"
-                  onClick={() => signOut()}
+                  onClick={() => {
+                    resetIncludePlans();
+                    signOut();
+                  }}
                 >
                   <i className="bi bi-box-arrow-right me-1" />
                   Sign out

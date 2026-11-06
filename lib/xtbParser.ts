@@ -1,4 +1,5 @@
 import * as XLSX from "xlsx";
+import { INVESTMENT_PLAN, MY_TRADES, type Product } from "@/lib/assetFilter";
 
 /**
  * Parser do relatório XTB (xStation 5 → Histórico → Exportar Excel).
@@ -9,8 +10,9 @@ import * as XLSX from "xlsx";
  *   - por cada ticker há uma linha-resumo (Type vazio, Category preenchida) seguida
  *     de uma linha por lote (Type = BUY/SELL, Category vazia).
  *
- * Só são lidos os lotes (para não contar a dobrar), só de instrumentos ETF e só do
- * produto "My Trades" — posições de "Investment Plan" são ignoradas.
+ * Só são lidos os lotes (para não contar a dobrar) e só de instrumentos ETF.
+ * Cada lote fica marcado com o produto ("My Trades" ou "Investment Plan") para o
+ * dashboard poder incluir ou excluir os planos de investimento.
  * Valores monetários (Value, Gross Profit) vêm na moeda da conta (EUR);
  * o investido é calculado como Value − Gross Profit para ficar sempre na moeda da conta.
  */
@@ -27,21 +29,22 @@ export type AssetRow = {
   profitLoss: number;
   year?: number;
   openedAt?: Date;
+  product: Product;
 };
+
 
 export type ParseResult = {
   rows: AssetRow[];
   /** Tickers ignorados por não serem ETF (ex.: ações, ETC). */
   skippedTickers: string[];
-  /** N.º de lotes ignorados por pertencerem a um plano de investimento. */
-  skippedInvestmentPlanLots: number;
+  /** N.º de lotes de planos de investimento importados. */
+  investmentPlanLots: number;
   /** Data de geração do relatório ("Data as of report generated"). */
   reportDate?: Date;
   error?: string;
 };
 
-/** Produto XTB excluído (planos de investimento automáticos). */
-const EXCLUDED_PRODUCT = /investment\s*plans?/i;
+const INVESTMENT_PLAN_RE = /investment\s*plans?/i;
 
 /** Categorias incluídas no dashboard. */
 const INCLUDED_CATEGORIES = new Set(["ETF"]);
@@ -86,7 +89,7 @@ export function parseXtbOpenPositions(buffer: ArrayBuffer): ParseResult {
     return {
       rows: [],
       skippedTickers: [],
-      skippedInvestmentPlanLots: 0,
+      investmentPlanLots: 0,
       error: "Folha «Open Positions» não encontrada no ficheiro.",
     };
   }
@@ -108,7 +111,7 @@ export function parseXtbOpenPositions(buffer: ArrayBuffer): ParseResult {
     return {
       rows: [],
       skippedTickers: [],
-      skippedInvestmentPlanLots: 0,
+      investmentPlanLots: 0,
       error:
         "Cabeçalho da folha «Open Positions» não reconhecido (esperadas as colunas Ticker, Volume, Value, Gross Profit).",
     };
@@ -149,14 +152,10 @@ export function parseXtbOpenPositions(buffer: ArrayBuffer): ParseResult {
   // 2.ª passagem: lotes (Type = BUY/SELL)
   const result: AssetRow[] = [];
   const skipped = new Set<string>();
-  let skippedInvestmentPlanLots = 0;
+  let investmentPlanLots = 0;
   for (const r of rows.slice(headerIndex + 1)) {
     const ticker = String(cell(r, c.ticker)).trim();
     if (!ticker || !/^(buy|sell)$/i.test(String(cell(r, c.type)).trim())) continue;
-    if (EXCLUDED_PRODUCT.test(String(cell(r, c.product)))) {
-      skippedInvestmentPlanLots++;
-      continue;
-    }
 
     const info = meta.get(ticker);
     const category = (info?.category || String(cell(r, c.category)).trim()).toUpperCase();
@@ -167,6 +166,11 @@ export function parseXtbOpenPositions(buffer: ArrayBuffer): ParseResult {
 
     const quantity = toNumber(cell(r, c.volume));
     if (quantity <= 0) continue;
+
+    const product: Product = INVESTMENT_PLAN_RE.test(String(cell(r, c.product)))
+      ? INVESTMENT_PLAN
+      : MY_TRADES;
+    if (product === INVESTMENT_PLAN) investmentPlanLots++;
 
     const currentValue = toNumber(cell(r, c.value));
     const profitLoss = toNumber(cell(r, c.grossProfit));
@@ -185,8 +189,9 @@ export function parseXtbOpenPositions(buffer: ArrayBuffer): ParseResult {
       profitLoss,
       year: openedAt?.getUTCFullYear(),
       openedAt,
+      product,
     });
   }
 
-  return { rows: result, skippedTickers: [...skipped].sort(), skippedInvestmentPlanLots, reportDate };
+  return { rows: result, skippedTickers: [...skipped].sort(), investmentPlanLots, reportDate };
 }

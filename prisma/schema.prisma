@@ -93,6 +93,8 @@ model Asset {
   year          Int?
   /// Data/hora de abertura do lote (Open time UTC).
   openedAt      DateTime?
+  /// Produto XTB: "My Trades" ou "Investment Plan" (null em uploads antigos = My Trades).
+  product       String?
 
   fileId String
   file   UploadedFile @relation(fields: [fileId], references: [id])
