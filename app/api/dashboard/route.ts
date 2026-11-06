@@ -64,14 +64,14 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  const totalUnits = assets.reduce((s, a) => s + a.quantity, 0);
+  const etfCount = new Set(assets.map((a) => a.ticker)).size;
   const totalInvested = assets.reduce((s, a) => s + a.investedValue, 0);
   const totalCurrent = assets.reduce((s, a) => s + a.currentValue, 0);
   const totalProfit = totalCurrent - totalInvested;
   const profitPercent = totalInvested > 0 ? (totalProfit / totalInvested) * 100 : 0;
 
   const summary = {
-    totalUnits,
+    etfCount,
     totalInvested,
     totalAcc: totalCurrent - totalInvested,
     totalEuros: totalCurrent,

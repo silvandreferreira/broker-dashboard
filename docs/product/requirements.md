@@ -52,9 +52,9 @@ Documentation of **Broker Dashboard** functionality and requirements, organised 
 | Requirement | Description |
 |-------------|-------------|
 | **Data source** | All values and charts are based on the selected **active file**, **ETFs only** (assets with category `ETF`). Files uploaded with the old parser (no category) show a message asking to re-upload. |
-| **Summary** | Block with: Total Units (2 decimal places), Total Invested, Total ACC, Total €€, Profit %. |
+| **Summary** | Block with: Number of ETFs (distinct tickers), Total Invested, Total ACC, Total €€, Profit %. |
 | **Total ACC** | Defined as **Total €€ − Total Invested** (current value minus capital invested). |
-| **Charts** | (a) Percentage by index (ETFs grouped); (b) % profit by year; (d) Invested vs profit by year; (e) Accumulated invested vs portfolio value at each year end (ACC = gap between lines; from `/api/dashboard/history`, Yahoo prices); (f) Units by ticker. |
+| **Charts** | (a) Percentage by index (ETFs grouped); (b) % profit by purchase year (current profit of lots bought in each year); (d) Invested vs profit by year; (e) Accumulated invested vs portfolio value at each year end (ACC = gap between lines; from `/api/dashboard/history`, Yahoo prices); (f) Units by ticker. |
 | **Grouped ETFs** | "Percentage by index (ETFs grouped)" chart: ETFs tracking the same index (e.g. SXR8 + VUAA → S&P 500) are grouped; mapping configurable in code (e.g. S&P 500, MSCI World, All-World, MSCI Europe, Emerging Markets, US Tech). |
 | **Portfolio evolution (monthly / yearly)** | Estimated with **Yahoo Finance** daily closes (in EUR). Monthly chart for the report's year (value vs invested, monthly return %) and yearly return chart from the first lot's year. Gain (€) = value_end − value_start − contributions. Return (%) = **time-weighted return** chained daily: r_day = (V_day − V_prev − C_day) / (V_prev + C_day), period return = Π(1 + r_day) − 1, so the timing/size of contributions does not distort it. Values may differ slightly from XTB (price time / exchange) — accepted. Only lots still open in the report are included. A table view is available. |
 | **Yearly files** | The year of a file is the year of its report date ("Data as of report generated"). |
@@ -102,7 +102,7 @@ Documentation of **Broker Dashboard** functionality and requirements, organised 
 | **Authentication** | Google login, session, logout, access request gating, admin override |
 | **Upload** | XTB XLSX, Open Positions sheet, ETFs only, data in DB, no file on disk |
 | **Files** | List, active file, Dashboard button with loading and tab switch, delete & auto-select latest after delete |
-| **Dashboard** | Summary (incl. Total Units 2 dec.), 6 charts + monthly/yearly evolution, ETFs grouped by index |
+| **Dashboard** | Summary (incl. number of ETFs), 6 charts + monthly/yearly evolution, ETFs grouped by index |
 | **Cache** | In-memory cache, single requests, "Limpar cache" option |
 | **UI** | Finanza layout (Bootstrap 5), navbar, footer, tabs (incl. Admin), mobile-first |
 | **Performance** | Lazy load Dashboard, minified CSS, optimizePackageImports |

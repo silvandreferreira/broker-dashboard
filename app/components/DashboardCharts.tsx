@@ -68,8 +68,8 @@ export function DashboardCharts({ fileId }: { fileId: string }) {
         <div className="row row-cols-2 row-cols-sm-5 g-3">
           <div className="col">
             <div className="rounded border bg-light p-3">
-              <p className="small fw-medium text-secondary mb-1">Total Unidades</p>
-              <p className="fw-semibold mb-0">{summary.totalUnits.toFixed(2)}</p>
+              <p className="small fw-medium text-secondary mb-1">N.º de ETFs</p>
+              <p className="fw-semibold mb-0">{summary.etfCount}</p>
             </div>
           </div>
           <div className="col">
@@ -136,7 +136,10 @@ export function DashboardCharts({ fileId }: { fileId: string }) {
 
       {byYear.length > 0 && (
         <div className="rounded border bg-white p-4">
-          <h3 className="h6 mb-3">b. % de profit por ano</h3>
+          <h3 className="h6 mb-1">b. % de lucro por ano de compra</h3>
+          <p className="small text-muted mb-2">
+            Quanto já rendeu, até hoje, o que compraste em cada ano. Para o rendimento da carteira em cada ano, vê o gráfico «Rendimento anual».
+          </p>
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={byYear.map((d) => ({ ...d, year: String(d.year), profitPct: d.profitPercent }))}>
               <CartesianGrid strokeDasharray="3 3" />

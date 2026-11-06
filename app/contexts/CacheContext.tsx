@@ -23,7 +23,7 @@ export type FilesResponse = {
 };
 
 export type Summary = {
-  totalUnits: number;
+  etfCount: number;
   totalInvested: number;
   totalAcc: number;
   totalEuros: number;
