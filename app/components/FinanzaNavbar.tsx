@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { signIn, signOut, useSession } from "next-auth/react";
 import Link from "next/link";
-import { useCache } from "../contexts/CacheContext";
+import { useCache, resetIncludePlans } from "../contexts/CacheContext";
 
 export function FinanzaNavbar() {
   const { data: session, status } = useSession();
@@ -59,7 +59,10 @@ export function FinanzaNavbar() {
                   <button
                     type="button"
                     className="btn btn-outline-light btn-sm"
-                    onClick={() => signOut()}
+                    onClick={() => {
+                    resetIncludePlans();
+                    signOut();
+                  }}
                   >
                     <i className="bi bi-box-arrow-right me-1" />
                     Sair
