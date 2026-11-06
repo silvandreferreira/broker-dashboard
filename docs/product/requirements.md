@@ -23,6 +23,7 @@ Documentation of **Broker Dashboard** functionality and requirements, organised 
 |-------------|-------------|
 | **Format** | Only **XLSX** files (export from XTB broker). |
 | **Sheet and columns** | XTB report exported from xStation 5 → History → Export (Excel). Reads sheet **"Open Positions"**; columns used: Ticker, Instrument/Position, Category, Type, Volume, Value, Open price, Open time (UTC), Gross Profit. Only lot rows (Type = BUY/SELL) are read; per-ticker summary rows are used only for category and name. |
+| **My Trades only** | Lots whose Product is **Investment Plan** (automatic investment plans) are ignored; only **My Trades** lots are imported. Count returned as `skippedInvestmentPlanLots`. |
 | **ETFs only** | Only instruments with Category **ETF** are imported. Stocks, ETCs, etc. are ignored (listed in the upload response as `skippedTickers`). |
 | **Values** | Current value = `Value`; profit = `Gross Profit`; invested = `Value − Gross Profit` (always in account currency, even for instruments quoted in USD). |
 | **One file per year** | The intended use is one XTB export per year; the user picks which file the dashboard shows. |
