@@ -9,7 +9,8 @@ import * as XLSX from "xlsx";
  *   - por cada ticker há uma linha-resumo (Type vazio, Category preenchida) seguida
  *     de uma linha por lote (Type = BUY/SELL, Category vazia).
  *
- * Só são lidos os lotes (para não contar a dobrar) e só de instrumentos ETF.
+ * Só são lidos os lotes (para não contar a dobrar), só de instrumentos ETF e só do
+ * produto "My Trades" — posições de "Investment Plan" são ignoradas.
  * Valores monetários (Value, Gross Profit) vêm na moeda da conta (EUR);
  * o investido é calculado como Value − Gross Profit para ficar sempre na moeda da conta.
  */
@@ -32,10 +33,15 @@ export type ParseResult = {
   rows: AssetRow[];
   /** Tickers ignorados por não serem ETF (ex.: ações, ETC). */
   skippedTickers: string[];
+  /** N.º de lotes ignorados por pertencerem a um plano de investimento. */
+  skippedInvestmentPlanLots: number;
   /** Data de geração do relatório ("Data as of report generated"). */
   reportDate?: Date;
   error?: string;
 };
+
+/** Produto XTB excluído (planos de investimento automáticos). */
+const EXCLUDED_PRODUCT = /investment\s*plans?/i;
 
 /** Categorias incluídas no dashboard. */
 const INCLUDED_CATEGORIES = new Set(["ETF"]);
@@ -80,6 +86,7 @@ export function parseXtbOpenPositions(buffer: ArrayBuffer): ParseResult {
     return {
       rows: [],
       skippedTickers: [],
+      skippedInvestmentPlanLots: 0,
       error: "Folha «Open Positions» não encontrada no ficheiro.",
     };
   }
@@ -101,6 +108,7 @@ export function parseXtbOpenPositions(buffer: ArrayBuffer): ParseResult {
     return {
       rows: [],
       skippedTickers: [],
+      skippedInvestmentPlanLots: 0,
       error:
         "Cabeçalho da folha «Open Positions» não reconhecido (esperadas as colunas Ticker, Volume, Value, Gross Profit).",
     };
@@ -115,6 +123,7 @@ export function parseXtbOpenPositions(buffer: ArrayBuffer): ParseResult {
     return -1;
   };
   const c = {
+    product: col("product"),
     instrument: col("instrument/position", "instrument"),
     ticker: col("ticker"),
     category: col("category"),
@@ -140,9 +149,14 @@ export function parseXtbOpenPositions(buffer: ArrayBuffer): ParseResult {
   // 2.ª passagem: lotes (Type = BUY/SELL)
   const result: AssetRow[] = [];
   const skipped = new Set<string>();
+  let skippedInvestmentPlanLots = 0;
   for (const r of rows.slice(headerIndex + 1)) {
     const ticker = String(cell(r, c.ticker)).trim();
     if (!ticker || !/^(buy|sell)$/i.test(String(cell(r, c.type)).trim())) continue;
+    if (EXCLUDED_PRODUCT.test(String(cell(r, c.product)))) {
+      skippedInvestmentPlanLots++;
+      continue;
+    }
 
     const info = meta.get(ticker);
     const category = (info?.category || String(cell(r, c.category)).trim()).toUpperCase();
@@ -174,5 +188,5 @@ export function parseXtbOpenPositions(buffer: ArrayBuffer): ParseResult {
     });
   }
 
-  return { rows: result, skippedTickers: [...skipped].sort(), reportDate };
+  return { rows: result, skippedTickers: [...skipped].sort(), skippedInvestmentPlanLots, reportDate };
 }
