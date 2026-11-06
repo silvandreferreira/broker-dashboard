@@ -66,7 +66,7 @@ Loaded on demand via `next/dynamic` (lazy load) in `DashboardCharts`; bundle opt
 
 | Technology | Version | Use |
 |------------|---------|-----|
-| **xlsx** | ^0.18.5 | Reading XLSX files on upload (sheet "OPEN POSITION", columns and "Open time"). |
+| **xlsx** | ^0.18.5 | Reading XLSX files on upload (sheet "Open Positions", see `lib/xtbParser.ts`). |
 
 Used only in API route `app/api/files/upload/route.ts` (server).
 

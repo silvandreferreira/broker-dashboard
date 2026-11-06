@@ -70,6 +70,8 @@ model UploadedFile {
   fileName   String
   uploadedAt DateTime @default(now())
   isActive   Boolean  @default(false)
+  /// Data de geração do relatório XTB ("Data as of report generated").
+  reportDate DateTime?
 
   userId String
   user   User   @relation(fields: [userId], references: [id])
@@ -89,7 +91,18 @@ model Asset {
   currentValue  Float
   profitLoss    Float
   year          Int?
+  /// Data/hora de abertura do lote (Open time UTC).
+  openedAt      DateTime?
 
   fileId String
   file   UploadedFile @relation(fields: [fileId], references: [id])
+}
+/// Cache de fechos diários do Yahoo Finance, já convertidos para EUR.
+/// Uma linha por símbolo; `closes` = [["YYYY-MM-DD", fecho], ...] ordenado por data.
+model PriceHistory {
+  symbol    String   @id
+  currency  String
+  fromDate  DateTime
+  closes    Json
+  fetchedAt DateTime @default(now())
 }

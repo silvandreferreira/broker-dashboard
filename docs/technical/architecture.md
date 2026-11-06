@@ -34,6 +34,9 @@ broker-dashboard/
 │   ├── auth.ts                 # authOptions (NextAuth + session callback)
 │   ├── access.ts               # ADMIN_EMAIL and isAdminEmail helper
 │   ├── etfIndexGroups.ts       # Ticker → index mapping (grouped ETFs)
+│   ├── xtbParser.ts            # XTB XLSX parser (Open Positions, ETFs only)
+│   ├── yahoo.ts                # Yahoo Finance daily closes (EUR) + DB cache
+│   ├── portfolioHistory.ts     # Monthly / yearly valuation and returns
 │   └── prisma.ts               # Prisma client (singleton)
 ├── prisma/
 │   ├── schema.prisma           # Models and generator (no url in datasource)
@@ -58,10 +61,11 @@ All routes that require an authenticated user use `getServerSession(authOptions)
 |--------|-------|-------------|
 | GET | `/api/auth/*` | NextAuth (login, callback, session). |
 | GET | `/api/files` | User's file list + `activeFileId` (only approved users or admin). |
-| POST | `/api/files/upload` | Body: FormData with XLSX file. Parses sheet "OPEN POSITION", persists to `UploadedFile` + `Asset`; only allowed for approved users or admin. |
+| POST | `/api/files/upload` | Body: FormData with XLSX file. Parses sheet "Open Positions" (ETFs only, via `lib/xtbParser.ts`), persists to `UploadedFile` + `Asset`; only allowed for approved users or admin. |
 | POST | `/api/files/select` | Body: `{ fileId }`. Marks a file as active (`isActive`) for the user; only allowed for approved users or admin. |
 | POST | `/api/files/delete` | Body: `{ fileId }`. Deletes the file and its assets, then marks the most recently uploaded remaining file as active (if any). |
 | GET | `/api/dashboard?fileId=...` | Dashboard data: summary, byCategory, byYear, byType, investedVsProfitByYear, investedAndAccByYear, byTicker, byIndexGroup (grouped ETFs via `lib/etfIndexGroups.ts`); only for approved users or admin. |
+| GET | `/api/dashboard/history?fileId=...` | Monthly (report year) and yearly portfolio history using Yahoo Finance prices (`lib/yahoo.ts`, `lib/portfolioHistory.ts`); prices cached in `PriceHistory`. Returns `needsReupload` for files uploaded before `openedAt` existed. |
 | GET | `/api/admin/users` | Admin-only: list of users who tried to sign in, with access flags and timestamps. |
 | POST | `/api/admin/users/toggle` | Admin-only: approve/revoke user access (`accessApproved`, `accessApprovedAt`). |
 
@@ -76,7 +80,9 @@ All routes that require an authenticated user use `getServerSession(authOptions)
   - Relations: `accounts`, `sessions`, `files`.
 - **Account, Session, VerificationToken**: standard NextAuth models (Prisma Adapter).
 - **UploadedFile**: `id`, `fileName`, `uploadedAt`, `isActive`, `userId`; relation to `Asset[]`.
-- **Asset**: per XLSX position: `ticker`, `name`, `category`, `type`, `quantity`, `avgPrice`, `investedValue`, `currentValue`, `profitLoss`, `year`, `fileId`.
+- **PriceHistory**: Yahoo Finance cache, one row per Yahoo symbol: `symbol` (PK), `currency`, `fromDate`, `closes` (JSON `[["YYYY-MM-DD", closeEur], ...]`), `fetchedAt`. Refreshed when older than 12h or when it doesn't cover the requested start date.
+- **UploadedFile.reportDate**: XTB report generation date (defines the file's year).
+- **Asset**: per XLSX lot (`openedAt` = full open time UTC): `ticker`, `name`, `category`, `type`, `quantity`, `avgPrice`, `investedValue`, `currentValue`, `profitLoss`, `year`, `fileId`.
 
 The active file is the single `UploadedFile` with `isActive === true` for that `userId` (select logic and `delete` route keep this invariant).
 
@@ -108,7 +114,7 @@ The active file is the single `UploadedFile` with `isActive === true` for that `
    - The admin user (email `silvandreferreira@gmail.com`) is always allowed and sees the Admin tab.
 
 2. **Upload**
-   - Form submits XLSX → `/api/files/upload` → parse with `xlsx` (sheet OPEN POSITION) → write to DB as `UploadedFile` + `Asset`.
+   - Form submits XLSX → `/api/files/upload` → parse with `lib/xtbParser.ts` (sheet Open Positions, ETF lots only) → write to DB as `UploadedFile` + `Asset`.
    - Cache for file list is invalidated and reloaded, and the UI switches to the Dashboard tab.
 
 3. **File selection**
