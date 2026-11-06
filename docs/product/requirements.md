@@ -22,8 +22,11 @@ Documentation of **Broker Dashboard** functionality and requirements, organised 
 | Requirement | Description |
 |-------------|-------------|
 | **Format** | Only **XLSX** files (export from XTB broker). |
-| **Sheet and columns** | Reads sheet **"OPEN POSITION"**; columns used: Symbol, Volume, Open price, Market price, Purchase value, Gross P/L. |
-| **Year** | The year of each position is derived from the **"Open time"** field. |
+| **Sheet and columns** | XTB report exported from xStation 5 → History → Export (Excel). Reads sheet **"Open Positions"**; columns used: Ticker, Instrument/Position, Category, Type, Volume, Value, Open price, Open time (UTC), Gross Profit. Only lot rows (Type = BUY/SELL) are read; per-ticker summary rows are used only for category and name. |
+| **ETFs only** | Only instruments with Category **ETF** are imported. Stocks, ETCs, etc. are ignored (listed in the upload response as `skippedTickers`). |
+| **Values** | Current value = `Value`; profit = `Gross Profit`; invested = `Value − Gross Profit` (always in account currency, even for instruments quoted in USD). |
+| **One file per year** | The intended use is one XTB export per year; the user picks which file the dashboard shows. |
+| **Year** | The year of each lot is derived from the **"Open time (UTC)"** field. |
 | **Persistence** | Data is stored in the database (tables `UploadedFile` and `Asset`). The binary file is **not** stored. |
 | **Feedback** | During upload, the button shows a loading state; on error, a message is shown to the user. |
 | **Post-upload** | On successful upload, the file list is refreshed and the user is redirected to the Dashboard tab. |
@@ -53,6 +56,8 @@ Documentation of **Broker Dashboard** functionality and requirements, organised 
 | **Total ACC** | Defined as **Total €€ − Total Invested** (current value minus capital invested). |
 | **Charts** | (a) Percentage by index (ETFs grouped); (b) % profit by year; (c) Investment type (ETFs, stocks, etc.); (d) Invested vs profit by year; (e) Accumulated invested vs ACC by year; (f) Units by ticker. |
 | **Grouped ETFs** | "Percentage by index (ETFs grouped)" chart: ETFs tracking the same index (e.g. SXR8 + VUAA → S&P 500) are grouped; mapping configurable in code (e.g. S&P 500, MSCI World, All-World, MSCI Europe, Emerging Markets, US Tech). |
+| **Portfolio evolution (monthly / yearly)** | Estimated with **Yahoo Finance** daily closes (in EUR). Monthly chart for the report's year (value vs invested, monthly return %) and yearly return chart from the first lot's year. Return = (value_end − value_start − contributions) / (value_start + contributions). Values may differ slightly from XTB (price time / exchange) — accepted. Only lots still open in the report are included. A table view is available. |
+| **Yearly files** | The year of a file is the year of its report date ("Data as of report generated"). |
 | **No active file** | If no file is selected, the Dashboard shows a message asking the user to choose a file in the Upload XLSX tab. |
 
 ---
@@ -95,7 +100,7 @@ Documentation of **Broker Dashboard** functionality and requirements, organised 
 | Area | Main deliverables |
 |------|--------------------|
 | **Authentication** | Google login, session, logout, access request gating, admin override |
-| **Upload** | XLSX, OPEN POSITION sheet, data in DB, no file on disk |
+| **Upload** | XTB XLSX, Open Positions sheet, ETFs only, data in DB, no file on disk |
 | **Files** | List, active file, Dashboard button with loading and tab switch, delete & auto-select latest after delete |
 | **Dashboard** | Summary (incl. Total Units 2 dec.), 6 charts, ETFs grouped by index |
 | **Cache** | In-memory cache, single requests, "Limpar cache" option |

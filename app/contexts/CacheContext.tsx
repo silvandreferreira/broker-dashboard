@@ -41,9 +41,32 @@ export type DashboardData = {
   byIndexGroup: { name: string; value: number; current: number }[];
 };
 
+export type HistoryPoint = {
+  period: string;
+  date: string;
+  value: number;
+  invested: number;
+  contribution: number;
+  gain: number;
+  returnPct: number | null;
+  totalProfit: number;
+};
+
+export type HistoryData = {
+  needsReupload?: boolean;
+  error?: string;
+  year?: number;
+  asOf?: string;
+  monthly?: HistoryPoint[];
+  yearly?: HistoryPoint[];
+  failedTickers?: string[];
+  xtbValue?: number;
+};
+
 type CacheState = {
   files: FilesResponse | null;
   dashboard: Record<string, DashboardData>;
+  history: Record<string, HistoryData>;
 };
 
 type CacheContextValue = {
@@ -54,6 +77,8 @@ type CacheContextValue = {
   getDashboardData: (fileId: string) => DashboardData | null;
   loadDashboard: (fileId: string) => Promise<void>;
   invalidateDashboard: (fileId: string) => void;
+  getHistoryData: (fileId: string) => HistoryData | null;
+  loadHistory: (fileId: string) => Promise<void>;
   clearCache: () => void;
 };
 
@@ -63,6 +88,7 @@ export function CacheProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<CacheState>({
     files: null,
     dashboard: {},
+    history: {},
   });
 
   const loadFiles = useCallback(async () => {
@@ -97,17 +123,35 @@ export function CacheProvider({ children }: { children: ReactNode }) {
     }));
   }, [state.dashboard]);
 
+  const getHistoryData = useCallback(
+    (fileId: string) => state.history[fileId] ?? null,
+    [state.history],
+  );
+
+  const loadHistory = useCallback(async (fileId: string) => {
+    if (state.history[fileId] != null) return;
+    const res = await fetch(`/api/dashboard/history?fileId=${encodeURIComponent(fileId)}`);
+    if (!res.ok) throw new Error("Falha ao carregar evolução da carteira");
+    const data: HistoryData = await res.json();
+    setState((s) => ({
+      ...s,
+      history: { ...s.history, [fileId]: data },
+    }));
+  }, [state.history]);
+
   const invalidateDashboard = useCallback((fileId: string) => {
     setState((s) => {
-      if (s.dashboard[fileId] == null) return s;
+      if (s.dashboard[fileId] == null && s.history[fileId] == null) return s;
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { [fileId]: _, ...rest } = s.dashboard;
-      return { ...s, dashboard: rest };
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { [fileId]: __, ...restHistory } = s.history;
+      return { ...s, dashboard: rest, history: restHistory };
     });
   }, []);
 
   const clearCache = useCallback(() => {
-    setState({ files: null, dashboard: {} });
+    setState({ files: null, dashboard: {}, history: {} });
   }, []);
 
   const value = useMemo<CacheContextValue>(
@@ -119,6 +163,8 @@ export function CacheProvider({ children }: { children: ReactNode }) {
       getDashboardData,
       loadDashboard,
       invalidateDashboard,
+      getHistoryData,
+      loadHistory,
       clearCache,
     }),
     [
@@ -129,6 +175,8 @@ export function CacheProvider({ children }: { children: ReactNode }) {
       getDashboardData,
       loadDashboard,
       invalidateDashboard,
+      getHistoryData,
+      loadHistory,
       clearCache,
     ],
   );

@@ -17,6 +17,7 @@ import {
   Line,
 } from "recharts";
 import { useCache, type DashboardData } from "../contexts/CacheContext";
+import { HistoryCharts } from "./HistoryCharts";
 
 const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#06b6d4"];
 
@@ -108,6 +109,8 @@ export function DashboardCharts({ fileId }: { fileId: string }) {
           </div>
         </div>
       )}
+
+      {summary && <HistoryCharts fileId={fileId} />}
 
       {byIndexGroup.length > 0 && (
         <div className="rounded border bg-white p-4">
