@@ -60,6 +60,10 @@ export function DashboardCharts({ fileId }: { fileId: string }) {
 
   const formatEur = (n: number) =>
     new Intl.NumberFormat("pt-PT", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n);
+  const formatEur2 = (n: number) =>
+    new Intl.NumberFormat("pt-PT", { style: "currency", currency: "EUR" }).format(n);
+  const formatUnits = (n: number) =>
+    new Intl.NumberFormat("pt-PT", { maximumFractionDigits: 4 }).format(n);
   const formatPct = (n: number) => `${n >= 0 ? "" : ""}${n.toFixed(1)}%`;
 
   return (
@@ -182,21 +186,41 @@ export function DashboardCharts({ fileId }: { fileId: string }) {
 
       {byTicker.length > 0 && (
         <div className="rounded border bg-white p-4">
-          <h3 className="h6 mb-3">f. Unidades por ticker</h3>
-          <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={byTicker} layout="vertical" margin={{ left: 60 }}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis type="number" tickFormatter={(v) => v.toFixed(2)} />
-              <YAxis type="category" dataKey="ticker" width={56} />
-              <Tooltip
-                formatter={(v) => [
-                  typeof v === "number" ? v.toFixed(4) : `${v ?? ""}`,
-                  "Unidades",
-                ]}
-              />
-              <Bar dataKey="units" fill="#0ea5e9" name="Unidades" radius={[0, 4, 4, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          <h3 className="h6 mb-3">f. Unidades por ETF</h3>
+          <div className="table-responsive">
+            <table className="table table-sm small align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>ETF</th>
+                  <th className="text-end">Unidades</th>
+                  <th className="text-end">Investido</th>
+                  <th className="text-end">Valor</th>
+                  <th className="text-end">Lucro</th>
+                </tr>
+              </thead>
+              <tbody>
+                {byTicker.map((t) => {
+                  const profit = t.current - t.invested;
+                  const pct = t.invested > 0 ? (profit / t.invested) * 100 : 0;
+                  return (
+                    <tr key={t.ticker}>
+                      <td>
+                        <div className="fw-medium">{t.name ?? t.ticker}</div>
+                        <div className="text-muted">{t.ticker}</div>
+                      </td>
+                      <td className="text-end">{formatUnits(t.units)}</td>
+                      <td className="text-end">{formatEur2(t.invested)}</td>
+                      <td className="text-end">{formatEur2(t.current)}</td>
+                      <td className={`text-end ${profit >= 0 ? "text-success" : "text-danger"}`}>
+                        {formatEur2(profit)}
+                        <div className="small">{formatPct(pct)}</div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 

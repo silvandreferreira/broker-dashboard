@@ -117,17 +117,17 @@ export async function GET(req: NextRequest) {
     lucro: Math.round(profit * 100) / 100,
   }));
 
-  const tickerMap = new Map<string, { units: number; invested: number; current: number }>();
+  const tickerMap = new Map<string, { name: string | null; units: number; invested: number; current: number }>();
   for (const a of assets) {
-    const cur = tickerMap.get(a.ticker) ?? { units: 0, invested: 0, current: 0 };
+    const cur = tickerMap.get(a.ticker) ?? { name: a.name, units: 0, invested: 0, current: 0 };
     cur.units += a.quantity;
     cur.invested += a.investedValue;
     cur.current += a.currentValue;
     tickerMap.set(a.ticker, cur);
   }
   const byTicker = Array.from(tickerMap.entries())
-    .map(([ticker, v]) => ({ ticker, units: v.units, invested: v.invested, current: v.current }))
-    .sort((a, b) => b.units - a.units);
+    .map(([ticker, v]) => ({ ticker, name: v.name, units: v.units, invested: v.invested, current: v.current }))
+    .sort((a, b) => b.current - a.current);
 
   const indexGroupMap = new Map<string, { invested: number; current: number; units: number }>();
   for (const a of assets) {

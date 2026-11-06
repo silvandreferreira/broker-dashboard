@@ -36,7 +36,7 @@ export type DashboardData = {
   byCategory: { name: string; value: number; current: number }[];
   byYear: { year: number; profitPercent: number; invested: number; profit: number }[];
   investedVsProfitByYear: { year: string; investido: number; lucro: number }[];
-  byTicker: { ticker: string; units: number; invested: number; current: number }[];
+  byTicker: { ticker: string; name: string | null; units: number; invested: number; current: number }[];
   byIndexGroup: { name: string; value: number; current: number }[];
 };
 
