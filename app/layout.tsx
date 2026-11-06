@@ -3,6 +3,7 @@ import "bootstrap-icons/font/bootstrap-icons.min.css"
 import { Providers } from "./providers"
 import { FinanzaNavbar } from "./components/FinanzaNavbar"
 import { FinanzaFooter } from "./components/FinanzaFooter"
+import { NewVersionBanner } from "./components/NewVersionBanner"
 
 export default function RootLayout({
   children,
@@ -16,6 +17,7 @@ export default function RootLayout({
           <FinanzaNavbar />
           <main className="flex-grow-1 py-4">{children}</main>
           <FinanzaFooter />
+          <NewVersionBanner />
         </Providers>
       </body>
     </html>
