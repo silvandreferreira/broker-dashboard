@@ -36,7 +36,6 @@ export type DashboardData = {
   byYear: { year: number; profitPercent: number; invested: number; profit: number }[];
   byType: { type: string; value: number; percentage: number }[];
   investedVsProfitByYear: { year: string; investido: number; lucro: number }[];
-  investedAndAccByYear: { year: string; investidoAcumulado: number; acc: number }[];
   byTicker: { ticker: string; units: number; invested: number; current: number }[];
   byIndexGroup: { name: string; value: number; current: number }[];
 };

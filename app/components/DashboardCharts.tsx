@@ -13,10 +13,8 @@ import {
   PieChart,
   Pie,
   Cell,
-  LineChart,
-  Line,
 } from "recharts";
-import { useCache, type DashboardData } from "../contexts/CacheContext";
+import { useCache } from "../contexts/CacheContext";
 import { HistoryCharts } from "./HistoryCharts";
 
 const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#06b6d4"];
@@ -24,25 +22,18 @@ const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899"
 export function DashboardCharts({ fileId }: { fileId: string }) {
   const { getDashboardData, loadDashboard } = useCache();
   const data = getDashboardData(fileId);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ fileId: string; message: string } | null>(null);
+  const currentError = error?.fileId === fileId ? error.message : null;
+  const loading = data == null && currentError == null;
 
   useEffect(() => {
-    if (data != null) {
-      setLoading(false);
-      setError(null);
-      return;
-    }
+    if (data != null) return;
     let cancelled = false;
-    setLoading(true);
-    setError(null);
-    loadDashboard(fileId)
-      .catch((e) => {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Falha ao carregar dashboard");
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+    loadDashboard(fileId).catch((e) => {
+      if (!cancelled) {
+        setError({ fileId, message: e instanceof Error ? e.message : "Falha ao carregar dashboard" });
+      }
+    });
     return () => {
       cancelled = true;
     };
@@ -56,16 +47,16 @@ export function DashboardCharts({ fileId }: { fileId: string }) {
       </div>
     );
   }
-  if (error) {
+  if (currentError) {
     return (
       <div className="alert alert-danger py-2 small mb-0">
-        {error}
+        {currentError}
       </div>
     );
   }
   if (!data) return null;
 
-  const { summary, byYear, byType, investedVsProfitByYear, investedAndAccByYear, byTicker, byIndexGroup } = data;
+  const { summary, byYear, byType, investedVsProfitByYear, byTicker, byIndexGroup } = data;
 
   const formatEur = (n: number) =>
     new Intl.NumberFormat("pt-PT", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n);
@@ -215,25 +206,6 @@ export function DashboardCharts({ fileId }: { fileId: string }) {
                 ))}
               </Bar>
             </BarChart>
-          </ResponsiveContainer>
-        </div>
-      )}
-
-      {investedAndAccByYear.length > 0 && (
-        <div className="rounded border bg-white p-4">
-          <h3 className="h6 mb-3">e. Investido acumulado vs ACC (dinheiro meu vs juros compostos)</h3>
-          <ResponsiveContainer width="100%" height={260}>
-            <LineChart data={investedAndAccByYear}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="year" />
-              <YAxis tickFormatter={(v) => `€${v}`} />
-              <Tooltip
-                formatter={(v) => [typeof v === "number" ? formatEur(v) : `${v ?? ""}`, ""]}
-              />
-              <Legend />
-              <Line type="monotone" dataKey="investidoAcumulado" stroke="#6366f1" name="Investido acumulado" strokeWidth={2} dot />
-              <Line type="monotone" dataKey="acc" stroke="#10b981" name="ACC (valor atual)" strokeWidth={2} dot />
-            </LineChart>
           </ResponsiveContainer>
         </div>
       )}

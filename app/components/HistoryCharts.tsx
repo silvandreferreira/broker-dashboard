@@ -208,6 +208,39 @@ export function HistoryCharts({ fileId }: { fileId: string }) {
 
       {yearly.length > 0 && (
         <div className="rounded border bg-white p-4">
+          <h3 className="h6 mb-1">Investido acumulado vs valor da carteira (fim de cada ano)</h3>
+          <p className="small text-muted mb-2">
+            A distância entre as linhas é o ACC: o que os juros compostos já renderam sobre o teu dinheiro.
+          </p>
+          <ResponsiveContainer width="100%" height={260}>
+            <LineChart data={yearly}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} />
+              <XAxis dataKey="label" />
+              <YAxis tickFormatter={(v) => formatEur(v)} width={80} />
+              <Tooltip
+                content={({ active, payload }) => {
+                  if (!active || !payload?.length) return null;
+                  const p = payload[0].payload as HistoryPoint & { label: string };
+                  return (
+                    <div className="rounded border bg-white p-2 small shadow-sm">
+                      <div className="fw-semibold">{p.label}</div>
+                      <div>Valor: {formatEur2(p.value)}</div>
+                      <div>Investido acumulado: {formatEur2(p.invested)}</div>
+                      <div>ACC: {formatEur2(p.totalProfit)}</div>
+                    </div>
+                  );
+                }}
+              />
+              <Legend />
+              <Line type="monotone" dataKey="value" name="Valor (fim do ano)" stroke={VALUE_COLOR} strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+              <Line type="monotone" dataKey="invested" name="Investido acumulado" stroke={INVESTED_COLOR} strokeWidth={2} strokeDasharray="6 4" dot={{ r: 4 }} activeDot={{ r: 6 }} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {yearly.length > 0 && (
+        <div className="rounded border bg-white p-4">
           <h3 className="h6 mb-1">Rendimento anual</h3>
           <p className="small text-muted mb-2">
             Com base nos ETFs ainda em carteira; o último ano vai até {asOf}.

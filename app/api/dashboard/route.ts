@@ -34,7 +34,6 @@ export async function GET(req: NextRequest) {
       byYear: [],
       byType: [],
       investedVsProfitByYear: [],
-      investedAndAccByYear: [],
       byTicker: [],
       byIndexGroup: [],
     });
@@ -116,18 +115,6 @@ export async function GET(req: NextRequest) {
     lucro: Math.round(profit * 100) / 100,
   }));
 
-  let cumInvested = 0;
-  const accValue = Math.round(totalCurrent * 100) / 100;
-  const investedAndAccByYear = years.map((year) => {
-    const v = yearMap.get(year)!;
-    cumInvested += v.invested;
-    return {
-      year: String(year),
-      investidoAcumulado: Math.round(cumInvested * 100) / 100,
-      acc: accValue,
-    };
-  });
-
   const tickerMap = new Map<string, { units: number; invested: number; current: number }>();
   for (const a of assets) {
     const cur = tickerMap.get(a.ticker) ?? { units: 0, invested: 0, current: 0 };
@@ -165,7 +152,6 @@ export async function GET(req: NextRequest) {
     byYear,
     byType,
     investedVsProfitByYear,
-    investedAndAccByYear,
     byTicker,
     byIndexGroup,
   });
