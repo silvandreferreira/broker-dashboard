@@ -13,10 +13,8 @@ import {
   PieChart,
   Pie,
   Cell,
-  LineChart,
-  Line,
 } from "recharts";
-import { useCache, type DashboardData } from "../contexts/CacheContext";
+import { useCache } from "../contexts/CacheContext";
 import { HistoryCharts } from "./HistoryCharts";
 
 const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#06b6d4"];
@@ -24,25 +22,18 @@ const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899"
 export function DashboardCharts({ fileId }: { fileId: string }) {
   const { getDashboardData, loadDashboard } = useCache();
   const data = getDashboardData(fileId);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ fileId: string; message: string } | null>(null);
+  const currentError = error?.fileId === fileId ? error.message : null;
+  const loading = data == null && currentError == null;
 
   useEffect(() => {
-    if (data != null) {
-      setLoading(false);
-      setError(null);
-      return;
-    }
+    if (data != null) return;
     let cancelled = false;
-    setLoading(true);
-    setError(null);
-    loadDashboard(fileId)
-      .catch((e) => {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Falha ao carregar dashboard");
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+    loadDashboard(fileId).catch((e) => {
+      if (!cancelled) {
+        setError({ fileId, message: e instanceof Error ? e.message : "Falha ao carregar dashboard" });
+      }
+    });
     return () => {
       cancelled = true;
     };
@@ -56,16 +47,16 @@ export function DashboardCharts({ fileId }: { fileId: string }) {
       </div>
     );
   }
-  if (error) {
+  if (currentError) {
     return (
       <div className="alert alert-danger py-2 small mb-0">
-        {error}
+        {currentError}
       </div>
     );
   }
   if (!data) return null;
 
-  const { summary, byYear, byType, investedVsProfitByYear, investedAndAccByYear, byTicker, byIndexGroup } = data;
+  const { summary, byYear, investedVsProfitByYear, byTicker, byIndexGroup } = data;
 
   const formatEur = (n: number) =>
     new Intl.NumberFormat("pt-PT", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n);
@@ -77,8 +68,8 @@ export function DashboardCharts({ fileId }: { fileId: string }) {
         <div className="row row-cols-2 row-cols-sm-5 g-3">
           <div className="col">
             <div className="rounded border bg-light p-3">
-              <p className="small fw-medium text-secondary mb-1">Total Unidades</p>
-              <p className="fw-semibold mb-0">{summary.totalUnits.toFixed(2)}</p>
+              <p className="small fw-medium text-secondary mb-1">N.º de ETFs</p>
+              <p className="fw-semibold mb-0">{summary.etfCount}</p>
             </div>
           </div>
           <div className="col">
@@ -145,7 +136,10 @@ export function DashboardCharts({ fileId }: { fileId: string }) {
 
       {byYear.length > 0 && (
         <div className="rounded border bg-white p-4">
-          <h3 className="h6 mb-3">b. % de profit por ano</h3>
+          <h3 className="h6 mb-1">b. % de lucro por ano de compra</h3>
+          <p className="small text-muted mb-2">
+            Quanto já rendeu, até hoje, o que compraste em cada ano. Para o rendimento da carteira em cada ano, vê o gráfico «Rendimento anual».
+          </p>
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={byYear.map((d) => ({ ...d, year: String(d.year), profitPct: d.profitPercent }))}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -160,39 +154,6 @@ export function DashboardCharts({ fileId }: { fileId: string }) {
               <Bar dataKey="profitPct" fill="#3b82f6" name="Profit %" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
-        </div>
-      )}
-
-      {byType.length > 0 && (
-        <div className="rounded border bg-white p-4">
-          <h3 className="h6 mb-3">c. Tipo de investimento (ETFs, Ações, etc.)</h3>
-          <ResponsiveContainer width="100%" height={280}>
-            <PieChart>
-              <Pie
-                data={byType}
-                dataKey="percentage"
-                nameKey="type"
-                cx="50%"
-                cy="50%"
-                outerRadius={90}
-                label={({ name, value }) =>
-                  `${name ?? ""} ${typeof value === "number" ? value.toFixed(0) : ""}%`
-                }
-              >
-                {byType.map((_, i) => (
-                  <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip
-                formatter={(v) =>
-                  typeof v === "number" ? `${v.toFixed(1)}%` : `${v ?? ""}`
-                }
-              />
-            </PieChart>
-          </ResponsiveContainer>
-          <p className="small text-muted mt-1 mb-0">
-            Emergency fund (euros não investidos) não está no export XTB; podes contabilizá-lo à parte.
-          </p>
         </div>
       )}
 
@@ -219,25 +180,6 @@ export function DashboardCharts({ fileId }: { fileId: string }) {
         </div>
       )}
 
-      {investedAndAccByYear.length > 0 && (
-        <div className="rounded border bg-white p-4">
-          <h3 className="h6 mb-3">e. Investido acumulado vs ACC (dinheiro meu vs juros compostos)</h3>
-          <ResponsiveContainer width="100%" height={260}>
-            <LineChart data={investedAndAccByYear}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="year" />
-              <YAxis tickFormatter={(v) => `€${v}`} />
-              <Tooltip
-                formatter={(v) => [typeof v === "number" ? formatEur(v) : `${v ?? ""}`, ""]}
-              />
-              <Legend />
-              <Line type="monotone" dataKey="investidoAcumulado" stroke="#6366f1" name="Investido acumulado" strokeWidth={2} dot />
-              <Line type="monotone" dataKey="acc" stroke="#10b981" name="ACC (valor atual)" strokeWidth={2} dot />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      )}
-
       {byTicker.length > 0 && (
         <div className="rounded border bg-white p-4">
           <h3 className="h6 mb-3">f. Unidades por ticker</h3>
@@ -258,7 +200,14 @@ export function DashboardCharts({ fileId }: { fileId: string }) {
         </div>
       )}
 
-      {!summary && byIndexGroup.length === 0 && byYear.length === 0 && (
+      {data.needsReupload && (
+        <div className="alert alert-info py-2 small mb-0">
+          Este ficheiro foi carregado com uma versão antiga da app (sem distinção entre ETFs e ações).
+          Apaga-o e volta a carregá-lo para veres só os ETFs.
+        </div>
+      )}
+
+      {!data.needsReupload && !summary && byIndexGroup.length === 0 && byYear.length === 0 && (
         <p className="small text-muted mb-0">Sem dados para o ficheiro selecionado.</p>
       )}
     </div>

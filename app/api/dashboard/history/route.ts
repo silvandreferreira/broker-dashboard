@@ -30,6 +30,7 @@ export async function GET(req: NextRequest) {
       uploadedAt: true,
       reportDate: true,
       assets: {
+        where: { category: "ETF" },
         select: { ticker: true, quantity: true, investedValue: true, currentValue: true, openedAt: true },
       },
     },

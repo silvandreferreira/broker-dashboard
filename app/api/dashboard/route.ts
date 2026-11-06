@@ -32,9 +32,7 @@ export async function GET(req: NextRequest) {
       summary: null,
       byCategory: [],
       byYear: [],
-      byType: [],
       investedVsProfitByYear: [],
-      investedAndAccByYear: [],
       byTicker: [],
       byIndexGroup: [],
     });
@@ -48,18 +46,32 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "User not found" }, { status: 400 });
   }
 
-  const assets = await prisma.asset.findMany({
-    where: { fileId, file: { userId: user.id } },
-  });
+  // Só ETFs (ver lib/xtbParser.ts). Ficheiros carregados com o parser antigo não têm categoria.
+  const [assets, totalAssets] = await Promise.all([
+    prisma.asset.findMany({ where: { fileId, file: { userId: user.id }, category: "ETF" } }),
+    prisma.asset.count({ where: { fileId, file: { userId: user.id } } }),
+  ]);
 
-  const totalUnits = assets.reduce((s, a) => s + a.quantity, 0);
+  if (assets.length === 0 && totalAssets > 0) {
+    return NextResponse.json({
+      needsReupload: true,
+      summary: null,
+      byCategory: [],
+      byYear: [],
+      investedVsProfitByYear: [],
+      byTicker: [],
+      byIndexGroup: [],
+    });
+  }
+
+  const etfCount = new Set(assets.map((a) => a.ticker)).size;
   const totalInvested = assets.reduce((s, a) => s + a.investedValue, 0);
   const totalCurrent = assets.reduce((s, a) => s + a.currentValue, 0);
   const totalProfit = totalCurrent - totalInvested;
   const profitPercent = totalInvested > 0 ? (totalProfit / totalInvested) * 100 : 0;
 
   const summary = {
-    totalUnits,
+    etfCount,
     totalInvested,
     totalAcc: totalCurrent - totalInvested,
     totalEuros: totalCurrent,
@@ -99,34 +111,11 @@ export async function GET(req: NextRequest) {
     return { year, profitPercent: pct, invested: v.invested, profit: v.profit, current: v.current };
   });
 
-  const typeMap = new Map<string, number>();
-  for (const a of assets) {
-    const t = (a.type && a.type.trim()) || "Outro";
-    typeMap.set(t, (typeMap.get(t) ?? 0) + a.currentValue);
-  }
-  const byType = Array.from(typeMap.entries()).map(([type, value]) => ({
-    type,
-    value,
-    percentage: totalCurrent > 0 ? (value / totalCurrent) * 100 : 0,
-  })).sort((a, b) => b.value - a.value);
-
   const investedVsProfitByYear = byYear.map(({ year, invested, profit }) => ({
     year: String(year),
     investido: Math.round(invested * 100) / 100,
     lucro: Math.round(profit * 100) / 100,
   }));
-
-  let cumInvested = 0;
-  const accValue = Math.round(totalCurrent * 100) / 100;
-  const investedAndAccByYear = years.map((year) => {
-    const v = yearMap.get(year)!;
-    cumInvested += v.invested;
-    return {
-      year: String(year),
-      investidoAcumulado: Math.round(cumInvested * 100) / 100,
-      acc: accValue,
-    };
-  });
 
   const tickerMap = new Map<string, { units: number; invested: number; current: number }>();
   for (const a of assets) {
@@ -163,9 +152,7 @@ export async function GET(req: NextRequest) {
     summary,
     byCategory,
     byYear,
-    byType,
     investedVsProfitByYear,
-    investedAndAccByYear,
     byTicker,
     byIndexGroup,
   });
