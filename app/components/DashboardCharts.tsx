@@ -56,7 +56,7 @@ export function DashboardCharts({ fileId }: { fileId: string }) {
   }
   if (!data) return null;
 
-  const { summary, byYear, byType, investedVsProfitByYear, byTicker, byIndexGroup } = data;
+  const { summary, byYear, investedVsProfitByYear, byTicker, byIndexGroup } = data;
 
   const formatEur = (n: number) =>
     new Intl.NumberFormat("pt-PT", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n);
@@ -154,39 +154,6 @@ export function DashboardCharts({ fileId }: { fileId: string }) {
         </div>
       )}
 
-      {byType.length > 0 && (
-        <div className="rounded border bg-white p-4">
-          <h3 className="h6 mb-3">c. Tipo de investimento (ETFs, Ações, etc.)</h3>
-          <ResponsiveContainer width="100%" height={280}>
-            <PieChart>
-              <Pie
-                data={byType}
-                dataKey="percentage"
-                nameKey="type"
-                cx="50%"
-                cy="50%"
-                outerRadius={90}
-                label={({ name, value }) =>
-                  `${name ?? ""} ${typeof value === "number" ? value.toFixed(0) : ""}%`
-                }
-              >
-                {byType.map((_, i) => (
-                  <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip
-                formatter={(v) =>
-                  typeof v === "number" ? `${v.toFixed(1)}%` : `${v ?? ""}`
-                }
-              />
-            </PieChart>
-          </ResponsiveContainer>
-          <p className="small text-muted mt-1 mb-0">
-            Emergency fund (euros não investidos) não está no export XTB; podes contabilizá-lo à parte.
-          </p>
-        </div>
-      )}
-
       {investedVsProfitByYear.length > 0 && (
         <div className="rounded border bg-white p-4">
           <h3 className="h6 mb-3">d. Investido vs lucro por ano</h3>
@@ -230,7 +197,14 @@ export function DashboardCharts({ fileId }: { fileId: string }) {
         </div>
       )}
 
-      {!summary && byIndexGroup.length === 0 && byYear.length === 0 && (
+      {data.needsReupload && (
+        <div className="alert alert-info py-2 small mb-0">
+          Este ficheiro foi carregado com uma versão antiga da app (sem distinção entre ETFs e ações).
+          Apaga-o e volta a carregá-lo para veres só os ETFs.
+        </div>
+      )}
+
+      {!data.needsReupload && !summary && byIndexGroup.length === 0 && byYear.length === 0 && (
         <p className="small text-muted mb-0">Sem dados para o ficheiro selecionado.</p>
       )}
     </div>

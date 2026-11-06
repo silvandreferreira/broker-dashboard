@@ -188,7 +188,9 @@ export function HistoryCharts({ fileId }: { fileId: string }) {
       {monthly.length > 0 && (
         <div className="rounded border bg-white p-4">
           <h3 className="h6 mb-1">Rendimento mensal {data.year}</h3>
-          <p className="small text-muted mb-2">Variação do valor no mês, descontando os aportes.</p>
+          <p className="small text-muted mb-2">
+            Rendimento ponderado no tempo: mede como correram os ETFs, sem ser afetado pelo momento ou valor dos aportes.
+          </p>
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={monthly}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
@@ -243,7 +245,7 @@ export function HistoryCharts({ fileId }: { fileId: string }) {
         <div className="rounded border bg-white p-4">
           <h3 className="h6 mb-1">Rendimento anual</h3>
           <p className="small text-muted mb-2">
-            Com base nos ETFs ainda em carteira; o último ano vai até {asOf}.
+            Rendimento ponderado no tempo (dias encadeados), com base nos ETFs ainda em carteira; o último ano vai até {asOf}.
           </p>
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={yearly}>

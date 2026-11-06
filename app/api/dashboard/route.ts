@@ -32,7 +32,6 @@ export async function GET(req: NextRequest) {
       summary: null,
       byCategory: [],
       byYear: [],
-      byType: [],
       investedVsProfitByYear: [],
       byTicker: [],
       byIndexGroup: [],
@@ -47,9 +46,23 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "User not found" }, { status: 400 });
   }
 
-  const assets = await prisma.asset.findMany({
-    where: { fileId, file: { userId: user.id } },
-  });
+  // Só ETFs (ver lib/xtbParser.ts). Ficheiros carregados com o parser antigo não têm categoria.
+  const [assets, totalAssets] = await Promise.all([
+    prisma.asset.findMany({ where: { fileId, file: { userId: user.id }, category: "ETF" } }),
+    prisma.asset.count({ where: { fileId, file: { userId: user.id } } }),
+  ]);
+
+  if (assets.length === 0 && totalAssets > 0) {
+    return NextResponse.json({
+      needsReupload: true,
+      summary: null,
+      byCategory: [],
+      byYear: [],
+      investedVsProfitByYear: [],
+      byTicker: [],
+      byIndexGroup: [],
+    });
+  }
 
   const totalUnits = assets.reduce((s, a) => s + a.quantity, 0);
   const totalInvested = assets.reduce((s, a) => s + a.investedValue, 0);
@@ -98,17 +111,6 @@ export async function GET(req: NextRequest) {
     return { year, profitPercent: pct, invested: v.invested, profit: v.profit, current: v.current };
   });
 
-  const typeMap = new Map<string, number>();
-  for (const a of assets) {
-    const t = (a.type && a.type.trim()) || "Outro";
-    typeMap.set(t, (typeMap.get(t) ?? 0) + a.currentValue);
-  }
-  const byType = Array.from(typeMap.entries()).map(([type, value]) => ({
-    type,
-    value,
-    percentage: totalCurrent > 0 ? (value / totalCurrent) * 100 : 0,
-  })).sort((a, b) => b.value - a.value);
-
   const investedVsProfitByYear = byYear.map(({ year, invested, profit }) => ({
     year: String(year),
     investido: Math.round(invested * 100) / 100,
@@ -150,7 +152,6 @@ export async function GET(req: NextRequest) {
     summary,
     byCategory,
     byYear,
-    byType,
     investedVsProfitByYear,
     byTicker,
     byIndexGroup,
