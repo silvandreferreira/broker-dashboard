@@ -11,6 +11,18 @@ const nextConfig: NextConfig = {
   env: {
     NEXT_PUBLIC_BUILD_ID: buildId,
   },
+  async headers() {
+    return [
+      {
+        // O browser tem de ir sempre buscar a versão mais recente do service worker
+        source: "/sw.js",
+        headers: [
+          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
+          { key: "Service-Worker-Allowed", value: "/" },
+        ],
+      },
+    ];
+  },
   experimental: {
     optimizePackageImports: ["recharts"],
   },
