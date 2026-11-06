@@ -96,6 +96,14 @@ Documentation of **Broker Dashboard** functionality and requirements, organised 
 
 ---
 
+## 8. Mobile app (PWA) and updates
+
+| Requirement | Description |
+|-------------|-------------|
+| **Installable** | Web app manifest (`app/manifest.ts`), icons in `public/icons/` (192, 512, maskable 512, Apple 180), theme colour `#0d6efd`, standalone display. Install via "Add to Home Screen" (iPhone, Safari) or "Install app" (Android, Chrome). |
+| **Service worker** | `public/sw.js`: pages network-first with `/offline.html` fallback; hashed static files cache-first; **`/api/*` is never cached** (personal data and login). Registered only in production. |
+| **New version banner** | Build id (git SHA) baked into the bundle and exposed at `/api/version`; when a newer deploy is live, a banner offers to reload (checked on focus, visibility and every 5 min). |
+
 ## Summary by area
 
 | Area | Main deliverables |

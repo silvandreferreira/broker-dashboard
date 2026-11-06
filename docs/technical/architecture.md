@@ -66,6 +66,7 @@ All routes that require an authenticated user use `getServerSession(authOptions)
 | POST | `/api/files/delete` | Body: `{ fileId }`. Deletes the file and its assets, then marks the most recently uploaded remaining file as active (if any). |
 | GET | `/api/dashboard?fileId=...&includePlans=true|false` | Dashboard data (filter via `lib/assetFilter.ts`, `includePlans` defaults to true): summary, byCategory, byYear, investedVsProfitByYear, byTicker, byIndexGroup (grouped ETFs via `lib/etfIndexGroups.ts`); only for approved users or admin. |
 | GET | `/api/dashboard/history?fileId=...` | Monthly (report year) and yearly portfolio history using Yahoo Finance prices (`lib/yahoo.ts`, `lib/portfolioHistory.ts`); prices cached in `PriceHistory`. Returns `needsReupload` for files uploaded before `openedAt` existed. |
+| GET | `/api/version` | Public. Current build id (`NEXT_PUBLIC_BUILD_ID` = git SHA), `Cache-Control: no-store`; used by `NewVersionBanner`. |
 | GET | `/api/admin/users` | Admin-only: list of users who tried to sign in, with access flags and timestamps. |
 | POST | `/api/admin/users/toggle` | Admin-only: approve/revoke user access (`accessApproved`, `accessApprovedAt`). |
 
