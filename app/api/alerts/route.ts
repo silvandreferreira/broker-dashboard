@@ -20,6 +20,7 @@ export async function GET() {
       ticker: w.ticker,
       name: w.name,
       enabled: w.enabled,
+      alertedAt: w.alertedAt,
       inLatestFile: w.inLatestFile,
     })),
   });

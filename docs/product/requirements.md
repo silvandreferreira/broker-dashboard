@@ -109,7 +109,7 @@ Documentation of **Broker Dashboard** functionality and requirements, organised 
 | Requirement | Description |
 |-------------|-------------|
 | **Rule** | Alert when an ETF's current price is **more than 10% below its highest daily close of the last 52 weeks** (in the ETF's own currency, no FX). |
-| **Schedule** | Weekdays at **9h, 12h and 14h Lisbon time**. Vercel Hobby crons may fire at any minute within the hour. A notification is sent only if at least one ETF is dropping; it lists each ETF and its % below the high. |
+| **Schedule** | Weekdays at **9h, 12h and 14h Lisbon time**. Vercel Hobby crons may fire at any minute within the hour. Each drop is notified **once**, when the ETF first crosses −10%; it can alert again only after recovering to less than 8% below the high (avoids repeats around the threshold). The notification lists each newly dropping ETF and its % below the high. |
 | **Watchlist (config)** | "Alertas" tab. Created automatically from the ETFs in the **last uploaded file**; ETFs that appear in later uploads are added switched on; each ETF can be switched off. ETFs no longer in the last file are flagged. |
 | **Devices** | Web Push to the installed PWA (iPhone needs iOS 16.4+ and the app added to the Home Screen) or any supporting browser. "Ativar notificações", "Enviar teste" and "Desativar" per device. |
 | **Live view** | "Verificar agora" shows price, 52-week high (with date) and % from the high for every watched ETF. |

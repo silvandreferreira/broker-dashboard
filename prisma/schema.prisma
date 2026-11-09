@@ -132,6 +132,8 @@ model AlertWatch {
   ticker    String
   name      String?
   enabled   Boolean  @default(true)
+  /// Quando foi enviado o alerta da queda atual (null = ainda não / já recuperou).
+  alertedAt DateTime?
   createdAt DateTime @default(now())
 
   userId String

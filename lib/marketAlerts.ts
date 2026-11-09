@@ -4,6 +4,12 @@ import { fetchDropFromHigh, type DropFromHigh } from "@/lib/yahoo";
 /** Alerta quando um ETF está mais de X% abaixo do máximo das últimas 52 semanas. */
 export const DROP_THRESHOLD_PCT = 10;
 
+/**
+ * Só se volta a avisar depois de o ETF recuperar para menos de X% abaixo do máximo.
+ * Evita alertas repetidos quando o preço anda à volta dos −10%.
+ */
+export const REARM_THRESHOLD_PCT = 8;
+
 /** Horas (Lisboa) a que corre a verificação agendada. */
 export const ALERT_HOURS_LISBON = [9, 12, 14];
 

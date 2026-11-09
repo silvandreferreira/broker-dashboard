@@ -2,7 +2,13 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-type Watch = { ticker: string; name: string | null; enabled: boolean; inLatestFile: boolean };
+type Watch = {
+  ticker: string;
+  name: string | null;
+  enabled: boolean;
+  alertedAt: string | null;
+  inLatestFile: boolean;
+};
 type AlertsConfig = {
   thresholdPct: number;
   hours: number[];
@@ -247,8 +253,9 @@ export function AlertsPanel() {
     <div>
       <p className="text-muted small">
         Em dias úteis, às {hoursText} (hora de Lisboa), a app verifica os ETFs ligados abaixo e envia uma
-        notificação <strong>só se algum estiver mais de {threshold}% abaixo do máximo das últimas 52 semanas</strong>.
-        A hora exata pode variar até 59 minutos.
+        notificação <strong>quando um ETF passa a estar mais de {threshold}% abaixo do máximo das últimas 52
+        semanas</strong>. Cada queda só é avisada uma vez; o ETF volta a poder gerar alerta depois de recuperar para
+        menos de 8% abaixo do máximo. A hora exata pode variar até 59 minutos.
       </p>
 
       {error && (
@@ -385,6 +392,12 @@ export function AlertsPanel() {
                       {w.ticker}
                     </label>
                     {w.name && <div className="text-muted text-truncate" style={{ maxWidth: 240 }}>{w.name}</div>}
+                    {w.alertedAt && (
+                      <span className="badge text-bg-light border me-1">
+                        <i className="bi bi-bell-fill me-1" />
+                        Avisado a {fmtDate(w.alertedAt)}
+                      </span>
+                    )}
                     {!w.inLatestFile && <span className="badge text-bg-light border">Não está no último ficheiro</span>}
                   </td>
                   {!c ? (
