@@ -104,6 +104,16 @@ Documentation of **Broker Dashboard** functionality and requirements, organised 
 | **Service worker** | `public/sw.js`: pages network-first with `/offline.html` fallback; hashed static files cache-first; **`/api/*` is never cached** (personal data and login). Registered only in production. |
 | **New version banner** | Build id (git SHA) baked into the bundle and exposed at `/api/version`; when a newer deploy is live, a banner offers to reload (checked on focus, visibility and every 5 min). |
 
+## 9. Market drop alerts (push notifications)
+
+| Requirement | Description |
+|-------------|-------------|
+| **Rule** | Alert when an ETF's current price is **more than 10% below its highest daily close of the last 52 weeks** (in the ETF's own currency, no FX). |
+| **Schedule** | Weekdays at **9h, 12h and 14h Lisbon time**. Vercel Hobby crons may fire at any minute within the hour. A notification is sent only if at least one ETF is dropping; it lists each ETF and its % below the high. |
+| **Watchlist (config)** | "Alertas" tab. Created automatically from the ETFs in the **last uploaded file**; ETFs that appear in later uploads are added switched on; each ETF can be switched off. ETFs no longer in the last file are flagged. |
+| **Devices** | Web Push to the installed PWA (iPhone needs iOS 16.4+ and the app added to the Home Screen) or any supporting browser. "Ativar notificações", "Enviar teste" and "Desativar" per device. |
+| **Live view** | "Verificar agora" shows price, 52-week high (with date) and % from the high for every watched ETF. |
+
 ## Summary by area
 
 | Area | Main deliverables |
@@ -114,4 +124,5 @@ Documentation of **Broker Dashboard** functionality and requirements, organised 
 | **Dashboard** | Summary (incl. number of ETFs), 6 charts + monthly/yearly evolution, ETFs grouped by index |
 | **Cache** | In-memory cache, single requests, "Limpar cache" option |
 | **UI** | Finanza layout (Bootstrap 5), navbar, footer, tabs (incl. Admin), mobile-first |
+| **Alerts** | Push notifications on weekdays at 9h/12h/14h when an ETF is >10% below its 52-week high; watchlist from the last upload |
 | **Performance** | Lazy load Dashboard, minified CSS, optimizePackageImports |

@@ -82,6 +82,9 @@ All routes that require an authenticated user use `getServerSession(authOptions)
 - **Account, Session, VerificationToken**: standard NextAuth models (Prisma Adapter).
 - **UploadedFile**: `id`, `fileName`, `uploadedAt`, `isActive`, `userId`; relation to `Asset[]`.
 - **PriceHistory**: Yahoo Finance cache, one row per Yahoo symbol: `symbol` (PK), `currency`, `fromDate`, `closes` (JSON `[["YYYY-MM-DD", closeEur], ...]`), `fetchedAt`. Refreshed when older than 12h or when it doesn't cover the requested start date.
+- **PushSubscription**: one Web Push endpoint per device (`endpoint` unique, `p256dh`, `auth`, `userAgent`, `userId`).
+- **AlertWatch**: watched ETFs per user (`userId` + `ticker` unique, `name`, `enabled`).
+- **AlertRun**: one row per scheduled check (`slot` = Lisbon `YYYY-MM-DD HH`, `summary` JSON).
 - **UploadedFile.reportDate**: XTB report generation date (defines the file's year).
 - **Asset**: per XLSX lot (`openedAt` = full open time UTC; `product` = "My Trades" | "Investment Plan", null for old uploads): `ticker`, `name`, `category`, `type`, `quantity`, `avgPrice`, `investedValue`, `currentValue`, `profitLoss`, `year`, `fileId`.
 
@@ -138,7 +141,17 @@ The active file is the single `UploadedFile` with `isActive === true` for that `
 
 ---
 
+7. **Market drop alerts**
+   - `vercel.json` defines six Vercel Cron Jobs (Mon–Fri at 8, 9, 11, 12, 13, 14 UTC) calling GET `/api/cron/market-alerts` with `Authorization: Bearer $CRON_SECRET`. The route only proceeds when the Lisbon hour is 9, 12 or 14, so summer and winter time both work; `AlertRun` (slot `YYYY-MM-DD HH`) guarantees one run per slot. `?force=1` skips both checks for testing.
+   - For every user with a `PushSubscription`, `syncWatchlist` (`lib/marketAlerts.ts`) adds the ETFs of the latest upload to `AlertWatch`; enabled tickers are checked once each with `fetchDropFromHigh` (`lib/yahoo.ts`, Yahoo chart `range=1y`, no cache).
+   - Users with ETFs at or below −10% get a Web Push (`lib/push.ts`, `web-push` + VAPID). Expired subscriptions (404/410) are deleted. `public/sw.js` shows the notification and opens the app on tap.
+   - UI: `app/components/AlertsPanel.tsx` (tab "Alertas"); APIs `/api/alerts` (GET config, PATCH toggle), `/api/alerts/check`, `/api/push/subscribe` (POST/DELETE), `/api/push/test`.
+
+---
+
 ## 6. Relevant configuration
+
+- **Alerts env vars**: `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (https URL of the app), `CRON_SECRET`. Generate VAPID keys with `npx web-push generate-vapid-keys`.
 
 - **Prisma 7**: `prisma.config.ts` at project root with `defineConfig`, `env("DATABASE_URL")`; schema has no `url` in datasource.
 - **Next.js**: `experimental.optimizePackageImports: ["recharts"]` to reduce chart bundle size.

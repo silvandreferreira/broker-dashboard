@@ -169,3 +169,72 @@ export async function getDailyClosesEur(
 
   return { series, failed: failed.sort() };
 }
+
+export type DropFromHigh = {
+  symbol: string;
+  currency: string;
+  /** Último preço (intradiário, ~15 min de atraso) */
+  price: number;
+  /** Fecho mais alto das últimas 52 semanas (ou o preço atual, se for maior) */
+  high: number;
+  highDate: string;
+  /** Variação face ao máximo, em % (negativo = queda) */
+  changePct: number;
+  priceTime: string;
+};
+
+/**
+ * Preço atual vs máximo das últimas 52 semanas, na moeda do próprio ETF
+ * (sem conversão cambial, para medir só o comportamento do ETF). Sem cache: é para alertas.
+ */
+export async function fetchDropFromHigh(xtbTicker: string): Promise<DropFromHigh> {
+  const symbol = toYahooSymbol(xtbTicker);
+  const url =
+    `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}` +
+    `?range=1y&interval=1d`;
+  const res = await fetch(url, {
+    headers: { "User-Agent": "Mozilla/5.0 (broker-dashboard)" },
+    signal: AbortSignal.timeout(15_000),
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error(`Yahoo ${symbol}: HTTP ${res.status}`);
+  const json = await res.json();
+  const result = json?.chart?.result?.[0];
+  if (!result) throw new Error(`Yahoo ${symbol}: ${json?.chart?.error?.description ?? "sem dados"}`);
+
+  const timestamps: number[] = result.timestamp ?? [];
+  const closes: (number | null)[] = result.indicators?.quote?.[0]?.close ?? [];
+  let high = -Infinity;
+  let highDate = "";
+  let lastClose: number | undefined;
+  timestamps.forEach((ts, i) => {
+    const c = closes[i];
+    if (typeof c !== "number" || !Number.isFinite(c)) return;
+    lastClose = c;
+    if (c > high) {
+      high = c;
+      highDate = isoDate(new Date(ts * 1000));
+    }
+  });
+
+  const metaPrice = result.meta?.regularMarketPrice;
+  const price = typeof metaPrice === "number" && Number.isFinite(metaPrice) ? metaPrice : lastClose;
+  if (price == null || !Number.isFinite(high)) throw new Error(`Yahoo ${symbol}: sem preços`);
+  const priceTime = result.meta?.regularMarketTime
+    ? new Date(result.meta.regularMarketTime * 1000).toISOString()
+    : new Date().toISOString();
+  if (price > high) {
+    high = price;
+    highDate = priceTime.slice(0, 10);
+  }
+
+  return {
+    symbol,
+    currency: String(result.meta?.currency ?? "EUR"),
+    price,
+    high,
+    highDate,
+    changePct: (price / high - 1) * 100,
+    priceTime,
+  };
+}
