@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { useCache, resetIncludePlans } from "./contexts/CacheContext";
 import { AdminPanel } from "./components/AdminPanel";
+import { AlertsPanel } from "./components/AlertsPanel";
 import { ADMIN_EMAIL } from "@/lib/access";
 
 const DashboardCharts = dynamic(
@@ -31,7 +32,7 @@ export default function Home() {
     invalidateDashboard,
     clearCache,
   } = useCache();
-  const [activeTab, setActiveTab] = useState<"upload" | "dashboard" | "admin">("upload");
+  const [activeTab, setActiveTab] = useState<"upload" | "dashboard" | "alerts" | "admin">("upload");
   const [isLoadingFiles, setIsLoadingFiles] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -280,6 +281,16 @@ export default function Home() {
             Dashboard
           </button>
         </li>
+        <li className="nav-item" role="presentation">
+          <button
+            type="button"
+            className={`nav-link ${activeTab === "alerts" ? "active" : ""}`}
+            onClick={() => setActiveTab("alerts")}
+          >
+            <i className="bi bi-bell me-1" />
+            Alertas
+          </button>
+        </li>
         {isAdmin && (
           <li className="nav-item" role="presentation">
             <button
@@ -469,6 +480,18 @@ export default function Home() {
                 <DashboardCharts fileId={activeFileId} />
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {activeTab === "alerts" && (
+        <div className="card border shadow-sm">
+          <div className="card-body">
+            <h2 className="h5 card-title mb-3">
+              <i className="bi bi-bell me-2" />
+              Alertas de queda
+            </h2>
+            <AlertsPanel />
           </div>
         </div>
       )}
