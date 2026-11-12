@@ -149,3 +149,24 @@ model AlertRun {
   ranAt   DateTime @default(now())
   summary Json?
 }
+
+/// Métricas fundamentais (Finnhub /stock/metric) por ação do S&P 500, atualizadas pelo cron diário.
+model StockFundamentals {
+  symbol    String   @id
+  name      String
+  sector    String
+  industry  String?
+  /// Métricas atuais selecionadas: { peTTM: 27.2, roiTTM: 59.5, ... }
+  metrics   Json?
+  /// Séries anuais e trimestrais: { annual: { pe: [{period, v}], ... }, quarterly: {...} }
+  series    Json?
+  error     String?
+  fetchedAt DateTime @default(now())
+}
+
+/// Dados de detalhe (perfil, analistas, resultados, insiders) em cache, pedidos ao abrir a ação.
+model StockDetailCache {
+  symbol    String   @id
+  data      Json
+  fetchedAt DateTime @default(now())
+}

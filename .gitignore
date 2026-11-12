@@ -52,3 +52,6 @@ next-env.d.ts
 # Relatórios XTB com dados pessoais — nunca fazer commit
 *.xlsx
 *.xls
+
+# Screenshots de referência (não versionar)
+/clareza/
