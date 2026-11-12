@@ -85,6 +85,8 @@ All routes that require an authenticated user use `getServerSession(authOptions)
 - **PushSubscription**: one Web Push endpoint per device (`endpoint` unique, `p256dh`, `auth`, `userAgent`, `userId`).
 - **AlertWatch**: watched ETFs per user (`userId` + `ticker` unique, `name`, `enabled`, `alertedAt`).
 - **AlertRun**: one row per scheduled check (`slot` = Lisbon `YYYY-MM-DD HH`, `summary` JSON).
+- **StockFundamentals**: one row per S&P 500 symbol: `name`, `sector`, `industry`, `metrics` (JSON, selected Finnhub metrics + derived `_peMedian5y`, `_epsUpYearsPct`, `_epsPositiveYearsPct`, `_netMarginStd`), `series` (JSON annual/quarterly), `error`, `fetchedAt`.
+- **StockDetailCache**: `symbol` (PK), `data` (JSON detail), `fetchedAt`.
 - **UploadedFile.reportDate**: XTB report generation date (defines the file's year).
 - **Asset**: per XLSX lot (`openedAt` = full open time UTC; `product` = "My Trades" | "Investment Plan", null for old uploads): `ticker`, `name`, `category`, `type`, `quantity`, `avgPrice`, `investedValue`, `currentValue`, `profitLoss`, `year`, `fileId`.
 
@@ -147,9 +149,17 @@ The active file is the single `UploadedFile` with `isActive === true` for that `
    - Only ETFs that newly crossed −10% (`AlertWatch.alertedAt` null) are notified; `alertedAt` is set when the push reached at least one device and cleared when the ETF recovers above −8%. Users with newly dropping ETFs get a Web Push (`lib/push.ts`, `web-push` + VAPID). Expired subscriptions (404/410) are deleted. `public/sw.js` shows the notification and opens the app on tap.
    - UI: `app/components/AlertsPanel.tsx` (tab "Alertas"); APIs `/api/alerts` (GET config, PATCH toggle), `/api/alerts/check`, `/api/push/subscribe` (POST/DELETE), `/api/push/test`.
 
+8. **Stock radar**
+   - Three Vercel Cron Jobs (02:00, 03:00, 04:00 UTC daily) call GET `/api/cron/stocks-refresh` (Bearer `CRON_SECRET`). `refreshFundamentals` (`lib/stockData.ts`) fetches Finnhub `/stock/metric?metric=all` for the stalest symbols (> 20h), one request every 1.1 s (free tier: 60/min), until ~270 s; ~200 symbols per run, so the whole index refreshes daily. `compactMetricResponse` (`lib/stockScores.ts`) keeps selected metrics and series (margins converted to %) and derives the 5-year median P/E and consistency metrics.
+   - GET `/api/stocks` runs `scoreUniverse` over all rows (percentiles, 10-minute in-memory cache) and returns the radar list.
+   - GET `/api/stocks/[symbol]` returns the full score, metrics and series, plus `getStockDetail`: Finnhub profile, recommendations, earnings and insider transactions, and Yahoo 5-year closes for the stock and `^GSPC` (momentum). Cached 24h in `StockDetailCache` (only when every source succeeded).
+   - UI: `app/components/StockRadar.tsx` (tab "Ações") and `StockDetail.tsx`.
+
 ---
 
 ## 6. Relevant configuration
+
+- **Stock radar env var**: `FINNHUB_API_KEY` (free account at finnhub.io).
 
 - **Alerts env vars**: `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (https URL of the app), `CRON_SECRET`. Generate VAPID keys with `npx web-push generate-vapid-keys`.
 

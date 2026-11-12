@@ -93,11 +93,16 @@ export function compactMetricResponse(r: MetricResponse): { metrics: Metrics; se
     if (v !== undefined) metrics[k] = v;
   }
   const series: Series = { annual: {}, quarterly: {} };
+  // Nas séries trimestrais alguns rácios vêm com sufixo TTM (peTTM, psTTM, roicTTM)
+  const qAlias: Record<string, string> = { pe: "peTTM", ps: "psTTM", roic: "roicTTM", roe: "roeTTM" };
+  // Margens nas séries vêm em fração (0,74): guardar em % como as métricas TTM
+  const fraction = new Set(["grossMargin", "netMargin", "operatingMargin", "fcfMargin"]);
+  const toPct = (k: string, pts: SeriesPoint[]) => (fraction.has(k) ? pts.map((p) => ({ ...p, v: p.v * 100 })) : pts);
   for (const k of KEPT_SERIES) {
     const a = lastPoints(r.series?.annual?.[k], 10);
-    const q = lastPoints(r.series?.quarterly?.[k], 16);
-    if (a.length) series.annual[k] = a;
-    if (q.length) series.quarterly[k] = q;
+    const q = lastPoints(r.series?.quarterly?.[k] ?? r.series?.quarterly?.[qAlias[k] ?? ""], 16);
+    if (a.length) series.annual[k] = toPct(k, a);
+    if (q.length) series.quarterly[k] = toPct(k, q);
   }
 
   // P/E mediano dos últimos 5 anos (só anos com lucro)
@@ -113,7 +118,7 @@ export function compactMetricResponse(r: MetricResponse): { metrics: Metrics; se
     metrics._epsUpYearsPct = (up / (eps.length - 1)) * 100;
     metrics._epsPositiveYearsPct = (eps.filter((v) => v > 0).length / eps.length) * 100;
   }
-  const nm = lastPoints(r.series?.annual?.netMargin, 5).map((p) => p.v);
+  const nm = lastPoints(r.series?.annual?.netMargin, 5).map((p) => p.v * 100);
   if (nm.length >= 4) {
     const mean = nm.reduce((s, v) => s + v, 0) / nm.length;
     metrics._netMarginStd = Math.sqrt(nm.reduce((s, v) => s + (v - mean) ** 2, 0) / nm.length);
@@ -358,10 +363,13 @@ export function scoreUniverse(stocks: StockInput[]): StockScore[] {
     }
   }
 
+  // Bancos e seguradoras: dívida/capital e liquidez corrente não se aplicam ao negócio
+  const notApplicable = (s: StockInput, pillarKey: string) => pillarKey === "balance" && s.sector === "Financials";
+
   const evalPillars = (s: StockInput, defs: PillarDef[]) =>
     defs.map((p): PillarResult => {
       const indicators = p.indicators.map((ind) => {
-        const v = ind.value(s.metrics, ctxOf(s));
+        const v = notApplicable(s, p.key) ? undefined : ind.value(s.metrics, ctxOf(s));
         return {
           key: ind.key,
           label: ind.label,

@@ -96,7 +96,7 @@ export function StockRadar() {
         Finnhub, atualizados todos os dias. É uma ajuda para filtrar ideias, não uma recomendação de compra.
       </p>
 
-      {data.coverage.withData < data.coverage.total && (
+      {data.coverage.withData < data.coverage.total * 0.9 && (
         <div className="alert alert-info small py-2">
           A carregar dados: {data.coverage.withData} de {data.coverage.total} ações. O resto fica disponível nos
           próximos dias.

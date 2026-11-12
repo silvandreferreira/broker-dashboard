@@ -83,9 +83,6 @@ const fmtCap = (millions: number | null) =>
 const fmtDate = (iso: string) =>
   new Date(iso).toLocaleDateString("pt-PT", { day: "2-digit", month: "short", year: "numeric" });
 
-/** As séries do Finnhub trazem margens em fração (0,64) e as métricas TTM em % (64): normalizar para %. */
-const asPct = (points: SeriesPoint[] | undefined) =>
-  (points ?? []).map((p) => ({ ...p, v: Math.abs(p.v) <= 2 ? p.v * 100 : p.v }));
 
 function ScoreRing({ value, label }: { value: number | null; label: string }) {
   const r = 52;
@@ -212,12 +209,12 @@ export function StockDetailView({ symbol, onBack }: { symbol: string; onBack: ()
         byPeriod.set(p.period, row);
       }
     };
-    put("grossMargin", asPct(s.grossMargin));
-    put("netMargin", asPct(s.netMargin));
+    put("grossMargin", s.grossMargin ?? []);
+    put("netMargin", s.netMargin ?? []);
     put("eps", s.eps ?? []);
     put("pe", s.pe ?? []);
     put("pb", s.pb ?? []);
-    put("fcfMargin", asPct(s.fcfMargin));
+    put("fcfMargin", s.fcfMargin ?? []);
     const rows = [...byPeriod.values()].sort((a, b) => String(a.period).localeCompare(String(b.period)));
     return period === "annual" ? rows.slice(-8) : rows.slice(-12);
   }, [data, period]);
@@ -304,7 +301,7 @@ export function StockDetailView({ symbol, onBack }: { symbol: string; onBack: ()
       <div className="row g-2 mb-3 small">
         {[
           ["País", detail.profile.country ?? "—"],
-          ["Bolsa", detail.profile.exchange ?? "—"],
+          ["Bolsa", detail.profile.exchange?.split(" - ")[0] ?? "—"],
           ["Market cap", fmtCap(score.marketCap)],
           ["Preço", detail.price !== null ? `$${nf(detail.price, 2)}` : "—"],
           ["Máx. / mín. 52 sem.", metrics["52WeekHigh"] ? `$${nf(metrics["52WeekHigh"], 2)} / $${nf(metrics["52WeekLow"] ?? 0, 2)}` : "—"],
