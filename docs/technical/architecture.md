@@ -155,6 +155,10 @@ The active file is the single `UploadedFile` with `isActive === true` for that `
    - GET `/api/stocks/[symbol]` returns the full score, metrics and series, plus `getStockDetail`: Finnhub profile, recommendations, earnings and insider transactions, and Yahoo 5-year closes for the stock and `^GSPC` (momentum). Cached 24h in `StockDetailCache` (only when every source succeeded).
    - UI: `app/components/StockRadar.tsx` (tab "Ações") and `StockDetail.tsx`.
 
+9. **Reinforce**
+   - GET `/api/reinforce`: ETFs from `syncWatchlist` that are in the latest file → `evaluatePortfolioEtfs` (`lib/reinforce.ts`): Yahoo 2-year daily closes per ETF (52-week high/low, 200-day average, RSI 14, returns), plus `indexValuation` for S&P 500 ETFs, which reads only market cap, P/E and the annual P/E series from `StockFundamentals` with a raw SQL query (6h in-memory cache). No DB writes.
+   - UI: `app/components/ReinforcePanel.tsx` (tab "Reforçar").
+
 ---
 
 ## 6. Relevant configuration

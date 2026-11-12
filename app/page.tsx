@@ -8,6 +8,11 @@ import { AdminPanel } from "./components/AdminPanel";
 import { AlertsPanel } from "./components/AlertsPanel";
 import { ADMIN_EMAIL } from "@/lib/access";
 
+const ReinforcePanel = dynamic(
+  () => import("./components/ReinforcePanel").then((m) => ({ default: m.ReinforcePanel })),
+  { ssr: false },
+);
+
 const StockRadar = dynamic(
   () => import("./components/StockRadar").then((m) => ({ default: m.StockRadar })),
   { ssr: false },
@@ -37,7 +42,7 @@ export default function Home() {
     invalidateDashboard,
     clearCache,
   } = useCache();
-  const [activeTab, setActiveTab] = useState<"upload" | "dashboard" | "stocks" | "alerts" | "admin">("upload");
+  const [activeTab, setActiveTab] = useState<"upload" | "dashboard" | "reinforce" | "stocks" | "alerts" | "admin">("upload");
   const [isLoadingFiles, setIsLoadingFiles] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -289,6 +294,16 @@ export default function Home() {
         <li className="nav-item" role="presentation">
           <button
             type="button"
+            className={`nav-link ${activeTab === "reinforce" ? "active" : ""}`}
+            onClick={() => setActiveTab("reinforce")}
+          >
+            <i className="bi bi-plus-circle me-1" />
+            Reforçar
+          </button>
+        </li>
+        <li className="nav-item" role="presentation">
+          <button
+            type="button"
             className={`nav-link ${activeTab === "stocks" ? "active" : ""}`}
             onClick={() => setActiveTab("stocks")}
           >
@@ -495,6 +510,18 @@ export default function Home() {
                 <DashboardCharts fileId={activeFileId} />
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {activeTab === "reinforce" && (
+        <div className="card border shadow-sm">
+          <div className="card-body">
+            <h2 className="h5 card-title mb-3">
+              <i className="bi bi-plus-circle me-2" />
+              Reforçar a carteira
+            </h2>
+            <ReinforcePanel />
           </div>
         </div>
       )}
