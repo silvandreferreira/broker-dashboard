@@ -238,3 +238,27 @@ export async function fetchDropFromHigh(xtbTicker: string): Promise<DropFromHigh
     priceTime,
   };
 }
+
+/** Fechos diários "crus" (moeda original) de um símbolo Yahoo, para um `range` como "5y". */
+export async function fetchCloseSeries(symbol: string, range: string): Promise<DailyCloses> {
+  const url =
+    `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}` +
+    `?range=${range}&interval=1d`;
+  const res = await fetch(url, {
+    headers: { "User-Agent": "Mozilla/5.0 (broker-dashboard)" },
+    signal: AbortSignal.timeout(15_000),
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error(`Yahoo ${symbol}: HTTP ${res.status}`);
+  const json = await res.json();
+  const result = json?.chart?.result?.[0];
+  if (!result) throw new Error(`Yahoo ${symbol}: sem dados`);
+  const ts: number[] = result.timestamp ?? [];
+  const closes: (number | null)[] = result.indicators?.quote?.[0]?.close ?? [];
+  const out: DailyCloses = [];
+  ts.forEach((t, i) => {
+    const c = closes[i];
+    if (typeof c === "number" && Number.isFinite(c)) out.push([isoDate(new Date(t * 1000)), c]);
+  });
+  return out;
+}

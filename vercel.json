@@ -1,11 +1,41 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "crons": [
-    { "path": "/api/cron/market-alerts?utc=8", "schedule": "0 8 * * 1-5" },
-    { "path": "/api/cron/market-alerts?utc=9", "schedule": "0 9 * * 1-5" },
-    { "path": "/api/cron/market-alerts?utc=11", "schedule": "0 11 * * 1-5" },
-    { "path": "/api/cron/market-alerts?utc=12", "schedule": "0 12 * * 1-5" },
-    { "path": "/api/cron/market-alerts?utc=13", "schedule": "0 13 * * 1-5" },
-    { "path": "/api/cron/market-alerts?utc=14", "schedule": "0 14 * * 1-5" }
+    {
+      "path": "/api/cron/market-alerts?utc=8",
+      "schedule": "0 8 * * 1-5"
+    },
+    {
+      "path": "/api/cron/market-alerts?utc=9",
+      "schedule": "0 9 * * 1-5"
+    },
+    {
+      "path": "/api/cron/market-alerts?utc=11",
+      "schedule": "0 11 * * 1-5"
+    },
+    {
+      "path": "/api/cron/market-alerts?utc=12",
+      "schedule": "0 12 * * 1-5"
+    },
+    {
+      "path": "/api/cron/market-alerts?utc=13",
+      "schedule": "0 13 * * 1-5"
+    },
+    {
+      "path": "/api/cron/market-alerts?utc=14",
+      "schedule": "0 14 * * 1-5"
+    },
+    {
+      "path": "/api/cron/stocks-refresh?utc=2",
+      "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/stocks-refresh?utc=3",
+      "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/stocks-refresh?utc=4",
+      "schedule": "0 4 * * *"
+    }
   ]
 }

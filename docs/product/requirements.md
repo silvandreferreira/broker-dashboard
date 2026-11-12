@@ -114,6 +114,17 @@ Documentation of **Broker Dashboard** functionality and requirements, organised 
 | **Devices** | Web Push to the installed PWA (iPhone needs iOS 16.4+ and the app added to the Home Screen) or any supporting browser. "Ativar notificações", "Enviar teste" and "Desativar" per device. |
 | **Live view** | "Verificar agora" shows price, 52-week high (with date) and % from the high for every watched ETF. |
 
+## 10. Stock radar (S&P 500, inspired by Clareza)
+
+| Requirement | Description |
+|-------------|-------------|
+| **Universe** | The 503 S&P 500 companies (`lib/sp500.ts`, GICS sector and sub-industry). Separate from the portfolio, which stays ETF-only. |
+| **Scores** | Two 0–100 scores, as percentiles against the rest of the S&P 500. **Quality** = Profitability 35% (ROIC, net and gross margin), Growth 25% (3-year revenue and EPS CAGR, TTM revenue growth), Balance sheet 25% (debt/equity, current ratio, interest coverage; not applied to Financials), Consistency 15% (years with EPS growth and with profit, net-margin stability). **Valuation** (100 = cheapest) = P/E vs its own 5-year median 35%, P/E vs sector median 25%, PEG 20%, FCF yield 20%. A score needs at least 2 pillars. Own formula; it does not match Clareza's. |
+| **Radar** | "Ações" tab: card per stock with style (Growth if 3Y revenue CAGR ≥ 10%, REIT for Real Estate, otherwise Value), a one-line reading (e.g. "Excelente negócio a um preço atrativo."), Valuation and Quality with labels. Filters Todas/Growth/Value/REIT, search, sort by opportunity/cheapest/quality/market cap. |
+| **Detail** | Header (country, exchange, market cap, price, 52-week range, tags), both scores with pillars and indicators, momentum vs S&P 500 (1M/3M/1Y/3Y), analyst consensus (buy/hold/sell), EPS actual vs estimate (Bateu/Falhou), annual/quarterly charts (gross and net margin, EPS, P/E, P/B), TTM ratios, insider purchases and sales (12 months). |
+| **Not included** | Price targets and revenue by segment (paid on Finnhub), DCF, AI summaries and daily market report. |
+| **Disclaimer** | Shown in the tab: a tool to filter ideas, not a buy recommendation. |
+
 ## Summary by area
 
 | Area | Main deliverables |
@@ -125,4 +136,5 @@ Documentation of **Broker Dashboard** functionality and requirements, organised 
 | **Cache** | In-memory cache, single requests, "Limpar cache" option |
 | **UI** | Finanza layout (Bootstrap 5), navbar, footer, tabs (incl. Admin), mobile-first |
 | **Alerts** | Push notifications on weekdays at 9h/12h/14h when an ETF is >10% below its 52-week high; watchlist from the last upload |
+| **Stock radar** | S&P 500 quality and valuation scores, radar with filters, detail page with analysts, earnings, insiders and financial history (Finnhub) |
 | **Performance** | Lazy load Dashboard, minified CSS, optimizePackageImports |

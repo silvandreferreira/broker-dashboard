@@ -8,6 +8,11 @@ import { AdminPanel } from "./components/AdminPanel";
 import { AlertsPanel } from "./components/AlertsPanel";
 import { ADMIN_EMAIL } from "@/lib/access";
 
+const StockRadar = dynamic(
+  () => import("./components/StockRadar").then((m) => ({ default: m.StockRadar })),
+  { ssr: false },
+);
+
 const DashboardCharts = dynamic(
   () =>
     import("./components/DashboardCharts").then((m) => ({ default: m.DashboardCharts })),
@@ -32,7 +37,7 @@ export default function Home() {
     invalidateDashboard,
     clearCache,
   } = useCache();
-  const [activeTab, setActiveTab] = useState<"upload" | "dashboard" | "alerts" | "admin">("upload");
+  const [activeTab, setActiveTab] = useState<"upload" | "dashboard" | "stocks" | "alerts" | "admin">("upload");
   const [isLoadingFiles, setIsLoadingFiles] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -284,6 +289,16 @@ export default function Home() {
         <li className="nav-item" role="presentation">
           <button
             type="button"
+            className={`nav-link ${activeTab === "stocks" ? "active" : ""}`}
+            onClick={() => setActiveTab("stocks")}
+          >
+            <i className="bi bi-radar me-1" />
+            Ações
+          </button>
+        </li>
+        <li className="nav-item" role="presentation">
+          <button
+            type="button"
             className={`nav-link ${activeTab === "alerts" ? "active" : ""}`}
             onClick={() => setActiveTab("alerts")}
           >
@@ -480,6 +495,18 @@ export default function Home() {
                 <DashboardCharts fileId={activeFileId} />
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {activeTab === "stocks" && (
+        <div className="card border shadow-sm">
+          <div className="card-body">
+            <h2 className="h5 card-title mb-3">
+              <i className="bi bi-radar me-2" />
+              Radar de ações (S&amp;P 500)
+            </h2>
+            <StockRadar />
           </div>
         </div>
       )}

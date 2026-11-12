@@ -24,3 +24,13 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Radar de ações: cartões clicáveis */
+.stock-card {
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+.stock-card:hover,
+.stock-card:focus-visible {
+  transform: translateY(-2px);
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1) !important;
+}
