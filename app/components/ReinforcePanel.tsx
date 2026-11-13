@@ -13,6 +13,7 @@ type Etf = {
   name: string | null;
   currency: string;
   price: number | null;
+  ter: number | null;
   score: number | null;
   label: string;
   reading: string;
@@ -35,6 +36,42 @@ function scoreTone(s: number | null) {
   if (s >= 55) return { text: "text-success", bar: "bg-success" };
   if (s >= 40) return { text: "text-body", bar: "bg-secondary" };
   return { text: "text-danger", bar: "bg-danger" };
+}
+
+// Mesmos limites que reinforceLabel() em lib/reinforce.ts.
+const LEGEND = [
+  { range: "70–100", label: "Boa altura para reforçar", text: "Preço bem abaixo do normal: longe do máximo, abaixo da média de 200 dias e, quando aplicável, índice barato face à sua história.", tone: "text-success" },
+  { range: "55–69", label: "Altura favorável", text: "Vários sinais a favor (alguma queda ou correção), mas não todos.", tone: "text-success" },
+  { range: "40–54", label: "Neutro", text: "Sinais mistos: uns a favor, outros contra. Nem barato nem caro; reforçar como habitualmente.", tone: "text-body" },
+  { range: "25–39", label: "Pouco favorável", text: "A maioria dos sinais mostra preço esticado: perto do máximo e acima da média de 200 dias. Não é mau comprar, mas não há desconto.", tone: "text-danger" },
+  { range: "0–24", label: "Caro face ao histórico", text: "Praticamente no máximo do ano, bem acima da média de 200 dias e com RSI alto. Altura menos boa para reforços extra.", tone: "text-danger" },
+];
+
+function ScoreLegend() {
+  return (
+    <div className="card border bg-body-tertiary mb-3">
+      <div className="card-body py-2 small">
+        <div className="fw-semibold mb-1">
+          <i className="bi bi-info-circle me-1" />
+          Como ler a nota
+        </div>
+        <dl className="row mb-1">
+          {LEGEND.map((l) => (
+            <div key={l.label} className="col-12 d-flex gap-2 py-1">
+              <dt className={`fw-semibold text-nowrap ${l.tone}`} style={{ minWidth: 220 }}>
+                {l.range} · {l.label}
+              </dt>
+              <dd className="mb-0">{l.text}</dd>
+            </div>
+          ))}
+        </dl>
+        <div className="text-muted">
+          A nota compara o preço de hoje com o próprio histórico do ETF. Num plano de investimento mensal, uma nota baixa
+          não quer dizer que pares; quer dizer que agora não há desconto para aproveitar com um reforço extra.
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function EtfCard({ etf }: { etf: Etf }) {
@@ -62,6 +99,11 @@ function EtfCard({ etf }: { etf: Etf }) {
           {etf.price !== null && (
             <span className="badge text-bg-light border">
               {nf(etf.price)} {etf.currency}
+            </span>
+          )}
+          {etf.ter !== null && (
+            <span className="badge text-bg-light border" title="Custo de gestão anual (TER)">
+              TER {nf(etf.ter, 2)}%/ano
             </span>
           )}
           {etf.alert.droppingOver10 && (
@@ -183,6 +225,7 @@ export function ReinforcePanel() {
         prevê o futuro. Cotações às{" "}
         {new Date(data.checkedAt).toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" })}.
       </p>
+      <ScoreLegend />
       <div className="row g-3">
         {data.etfs.map((e) => (
           <div key={e.ticker} className="col-12 col-md-6 col-xl-4">

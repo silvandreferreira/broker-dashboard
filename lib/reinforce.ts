@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { fetchCloseSeries, toYahooSymbol, type DailyCloses } from "@/lib/yahoo";
+import { getTer } from "./etfTer";
 
 /**
  * "Reforçar": quão boa é a altura para comprar mais de cada ETF da carteira.
@@ -132,6 +133,8 @@ export type ReinforceEtf = {
   name: string | null;
   currency: string;
   price: number | null;
+  /** Custo de gestão anual em % (TER), se conhecido. */
+  ter: number | null;
   score: number | null;
   label: string;
   reading: string;
@@ -176,6 +179,7 @@ async function evaluateEtf(
     name,
     currency: "EUR",
     price: null,
+    ter: getTer(ticker),
     score: null,
     label: reinforceLabel(null),
     reading: "Sem cotações disponíveis.",
@@ -266,6 +270,7 @@ async function evaluateEtf(
     name,
     currency,
     price,
+    ter: getTer(ticker),
     score,
     label: reinforceLabel(score),
     reading: parts.join(", ") + ".",

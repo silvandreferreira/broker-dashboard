@@ -15,10 +15,20 @@ type RadarStock = {
   valuationLabel: string;
   reading: string;
   marketCap: number | null;
+  price: number | null;
+  changePct: number | null;
+  currency: string;
 };
 type RadarData = { updatedAt: string | null; coverage: { withData: number; total: number }; stocks: RadarStock[] };
 
 const STYLES = ["Todas", "Growth", "Value", "REIT"] as const;
+const QUALITY_LEVELS = ["Todas", "Excelente", "Boa", "Média", "Fraca"] as const;
+const VALUATION_LEVELS = ["Todas", "Muito barato", "Barato", "Preço justo", "Caro", "Muito caro"] as const;
+// Por defeito: as melhores oportunidades (qualidade excelente a preço muito barato).
+const DEFAULT_QUALITY = "Excelente";
+const DEFAULT_VALUATION = "Muito barato";
+const priceFmt = (v: number, currency: string) =>
+  v.toLocaleString("pt-PT", { style: "currency", currency, minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const SORTS = {
   opportunity: "Oportunidade (qualidade + preço)",
   valuation: "Mais baratas",
@@ -35,6 +45,8 @@ export function StockRadar() {
   const [data, setData] = useState<RadarData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [style, setStyle] = useState<(typeof STYLES)[number]>("Todas");
+  const [quality, setQuality] = useState<string>(DEFAULT_QUALITY);
+  const [valuation, setValuation] = useState<string>(DEFAULT_VALUATION);
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortKey>("opportunity");
   const [limit, setLimit] = useState(PAGE);
@@ -63,6 +75,8 @@ export function StockRadar() {
     const filtered = data.stocks.filter(
       (s) =>
         (style === "Todas" || s.style === style) &&
+        (quality === "Todas" || s.qualityLabel === quality) &&
+        (valuation === "Todas" || s.valuationLabel === valuation) &&
         (!q || s.symbol.toLowerCase().includes(q) || s.name.toLowerCase().includes(q)),
     );
     const key: Record<SortKey, (s: RadarStock) => number> = {
@@ -72,7 +86,8 @@ export function StockRadar() {
       marketCap: (s) => s.marketCap ?? -1,
     };
     return filtered.sort((a, b) => key[sort](b) - key[sort](a));
-  }, [data, style, query, sort]);
+  }, [data, style, quality, valuation, query, sort]);
+  const filtersChanged = quality !== DEFAULT_QUALITY || valuation !== DEFAULT_VALUATION;
 
   if (selected) {
     return <StockDetailView symbol={selected} onBack={() => setSelected(null)} />;
@@ -119,6 +134,64 @@ export function StockRadar() {
             </button>
           ))}
         </div>
+        <select
+          className="form-select form-select-sm"
+          style={{ maxWidth: 170 }}
+          value={quality}
+          onChange={(e) => {
+            setQuality(e.target.value);
+            setLimit(PAGE);
+          }}
+          aria-label="Filtrar por qualidade"
+        >
+          {QUALITY_LEVELS.map((l) => (
+            <option key={l} value={l}>
+              Qualidade: {l}
+            </option>
+          ))}
+        </select>
+        <select
+          className="form-select form-select-sm"
+          style={{ maxWidth: 190 }}
+          value={valuation}
+          onChange={(e) => {
+            setValuation(e.target.value);
+            setLimit(PAGE);
+          }}
+          aria-label="Filtrar por valuation"
+        >
+          {VALUATION_LEVELS.map((l) => (
+            <option key={l} value={l}>
+              Valuation: {l}
+            </option>
+          ))}
+        </select>
+        {(quality !== "Todas" || valuation !== "Todas") && (
+          <button
+            type="button"
+            className="btn btn-link btn-sm px-0"
+            onClick={() => {
+              setQuality("Todas");
+              setValuation("Todas");
+              setLimit(PAGE);
+            }}
+          >
+            Ver todas
+          </button>
+        )}
+        {filtersChanged && (quality === "Todas" || valuation === "Todas") && (
+          <button
+            type="button"
+            className="btn btn-link btn-sm px-0"
+            onClick={() => {
+              setQuality(DEFAULT_QUALITY);
+              setValuation(DEFAULT_VALUATION);
+              setLimit(PAGE);
+            }}
+          >
+            Só as melhores
+          </button>
+        )}
         <input
           type="search"
           className="form-control form-control-sm"
@@ -163,6 +236,17 @@ export function StockRadar() {
                 <div className="d-flex align-items-center gap-2 mb-1">
                   <span className="fw-bold">{s.symbol}</span>
                   <span className={`badge ${STYLE_BADGE[s.style]}`}>{s.style}</span>
+                  {s.price !== null && (
+                    <span className="ms-auto text-end small text-nowrap">
+                      <span className="fw-semibold">{priceFmt(s.price, s.currency)}</span>
+                      {s.changePct !== null && (
+                        <span className={`ms-1 ${s.changePct >= 0 ? "text-success" : "text-danger"}`}>
+                          {s.changePct > 0 ? "+" : ""}
+                          {s.changePct.toLocaleString("pt-PT", { maximumFractionDigits: 1, minimumFractionDigits: 1 })}%
+                        </span>
+                      )}
+                    </span>
+                  )}
                 </div>
                 <div className="small text-muted text-truncate mb-2">
                   {s.name} · {s.sector}
@@ -204,7 +288,21 @@ export function StockRadar() {
           </button>
         </div>
       )}
-      {list.length === 0 && <p className="text-muted small">Nenhuma ação encontrada.</p>}
+      {list.length === 0 && (
+        <p className="text-muted small">
+          Nenhuma ação encontrada com estes filtros.{" "}
+          <button
+            type="button"
+            className="btn btn-link btn-sm p-0 align-baseline"
+            onClick={() => {
+              setQuality("Todas");
+              setValuation("Todas");
+            }}
+          >
+            Ver todas
+          </button>
+        </p>
+      )}
     </div>
   );
 }
