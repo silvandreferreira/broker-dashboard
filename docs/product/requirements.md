@@ -125,6 +125,16 @@ Documentation of **Broker Dashboard** functionality and requirements, organised 
 | **Not included** | Price targets and revenue by segment (paid on Finnhub), DCF, AI summaries and daily market report. |
 | **Disclaimer** | Shown in the tab: a tool to filter ideas, not a buy recommendation. |
 
+## 11. Reinforce (ETF timing signals)
+
+| Requirement | Description |
+|-------------|-------------|
+| **ETFs** | The ETFs of the last uploaded file (same list as the drop alerts). |
+| **Score** | 0–100, higher = better moment to buy more, relative to the ETF's own history: drop from the 52-week high 30% (0% → 0, −20% → 100), distance to the 200-day average 25% (+10% → 0, −10% → 100), 14-day RSI 15% (70 → 0, 30 → 100), position in the 1-year range 10%. For S&P 500 ETFs (SXR8, VUAA, SPYL, CSPX, VUSA) and the S&P 500 IT ETF (QDVE), the index P/E vs its 5-year median 20% (+20% → 0, −20% → 100), computed from the stock radar data (cap-weighted harmonic mean, P/E outside 3–500 ignored). Missing signals are left out and weights renormalised. |
+| **Labels** | ≥70 "Boa altura para reforçar", ≥55 "Altura favorável", ≥40 "Neutro", ≥25 "Pouco favorável", otherwise "Caro face ao histórico". |
+| **Card** | Score, label, one-line reading, price, drop-alert badges; detail with each signal, 1M/3M/1Y returns, index P/E history and a 1-year price vs 200-day average chart. |
+| **Disclaimer** | Shows discounts against history; does not predict the future. |
+
 ## Summary by area
 
 | Area | Main deliverables |
@@ -137,4 +147,5 @@ Documentation of **Broker Dashboard** functionality and requirements, organised 
 | **UI** | Finanza layout (Bootstrap 5), navbar, footer, tabs (incl. Admin), mobile-first |
 | **Alerts** | Push notifications on weekdays at 9h/12h/14h when an ETF is >10% below its 52-week high; watchlist from the last upload |
 | **Stock radar** | S&P 500 quality and valuation scores, radar with filters, detail page with analysts, earnings, insiders and financial history (Finnhub) |
+| **Reinforce** | Per-ETF "good moment to buy more" score from price signals and, for S&P 500 ETFs, index valuation |
 | **Performance** | Lazy load Dashboard, minified CSS, optimizePackageImports |
