@@ -262,3 +262,39 @@ export async function fetchCloseSeries(symbol: string, range: string): Promise<D
   });
   return out;
 }
+
+export type LiveQuote = { price: number; changePct: number | null; currency: string };
+
+/**
+ * Cotação atual de muitos símbolos de uma vez (endpoint "spark": até 20 símbolos por pedido).
+ * Símbolos sem resposta ficam de fora do mapa.
+ */
+export async function fetchLiveQuotes(symbols: string[]): Promise<Map<string, LiveQuote>> {
+  const out = new Map<string, LiveQuote>();
+  const batches: string[][] = [];
+  for (let i = 0; i < symbols.length; i += 20) batches.push(symbols.slice(i, i + 20));
+  const run = async (batch: string[]) => {
+    try {
+      const res = await fetch(
+        `https://query1.finance.yahoo.com/v7/finance/spark?symbols=${batch.map(encodeURIComponent).join(",")}&range=1d&interval=1d`,
+        { headers: { "User-Agent": "Mozilla/5.0 (broker-dashboard)" }, signal: AbortSignal.timeout(15_000), cache: "no-store" },
+      );
+      if (!res.ok) return;
+      const json = await res.json();
+      for (const r of json?.spark?.result ?? []) {
+        const meta = r?.response?.[0]?.meta;
+        if (typeof meta?.regularMarketPrice !== "number") continue;
+        out.set(String(r.symbol), {
+          price: meta.regularMarketPrice,
+          changePct: typeof meta.regularMarketChangePercent === "number" ? meta.regularMarketChangePercent : null,
+          currency: String(meta.currency ?? "USD"),
+        });
+      }
+    } catch (e) {
+      console.error("[yahoo spark]", e);
+    }
+  };
+  // 5 pedidos em paralelo de cada vez, para não abusar do Yahoo.
+  for (let i = 0; i < batches.length; i += 5) await Promise.all(batches.slice(i, i + 5).map(run));
+  return out;
+}

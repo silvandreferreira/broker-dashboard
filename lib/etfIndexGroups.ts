@@ -18,9 +18,10 @@ const TICKER_TO_INDEX: Record<string, string> = {
   VWCE: "All-World",
   VWRA: "All-World",
   // MSCI Europe
-  IS3N: "MSCI Europe",
+  IMAE: "MSCI Europe",
   EUNA: "MSCI Europe",
-  // Emerging Markets
+  // Emerging Markets (IS3N = iShares Core MSCI EM IMI)
+  IS3N: "Emerging Markets",
   EIMI: "Emerging Markets",
   VFEM: "Emerging Markets",
   // US Tech / Nasdaq
