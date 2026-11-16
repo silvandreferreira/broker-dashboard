@@ -149,7 +149,8 @@ export type ReinforceEtf = {
   /** Últimos 12 meses: [data, fecho, média 200 dias] */
   chart: { date: string; close: number; ma200: number | null }[];
   index: IndexValuation | null;
-  alert: { droppingOver10: boolean; alertedAt: string | null };
+  /** dropPct: queda face ao máximo de 52 semanas, em % (positivo, ex.: 12.5) */
+  alert: { droppingOver10: boolean; dropPct: number | null; alertedAt: string | null };
   error?: string;
 };
 
@@ -199,7 +200,7 @@ async function evaluateEtf(
     returns: { m1: null, m3: null, y1: null },
     chart: [],
     index: null,
-    alert: { droppingOver10: false, alertedAt: alertedAt?.toISOString() ?? null },
+    alert: { droppingOver10: false, dropPct: null, alertedAt: alertedAt?.toISOString() ?? null },
   };
   let series: DailyCloses;
   let currency = "EUR";
@@ -305,7 +306,7 @@ async function evaluateEtf(
       return { date, close: Math.round(close * 100) / 100, ma200: ma === null ? null : Math.round(ma * 100) / 100 };
     }),
     index,
-    alert: { droppingOver10: drop <= -10, alertedAt: alertedAt?.toISOString() ?? null },
+    alert: { droppingOver10: drop <= -10, dropPct: round1(-drop), alertedAt: alertedAt?.toISOString() ?? null },
   };
 }
 
