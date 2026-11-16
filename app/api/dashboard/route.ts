@@ -98,6 +98,20 @@ export async function GET(req: NextRequest) {
     totalAcc: totalCurrent - totalInvested,
     totalEuros: totalCurrent,
     profitPercent,
+    byKind: (["ETF", "STOCK"] as const).map((kind) => {
+      const list = assets.filter((a) => a.category === kind);
+      const invested = list.reduce((s, a) => s + a.investedValue, 0);
+      const current = list.reduce((s, a) => s + a.currentValue, 0);
+      return {
+        kind,
+        count: new Set(list.map((a) => a.ticker)).size,
+        units: list.reduce((s, a) => s + a.quantity, 0),
+        invested,
+        profit: current - invested,
+        current,
+        profitPercent: invested > 0 ? ((current - invested) / invested) * 100 : 0,
+      };
+    }),
   };
 
   const categoryMap = new Map<string, { invested: number; current: number; units: number }>();

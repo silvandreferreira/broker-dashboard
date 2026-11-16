@@ -14,7 +14,9 @@ import {
   Pie,
   Cell,
 } from "recharts";
-import { useCache, type BrokerFilter, type KindFilter } from "../contexts/CacheContext";
+import { useCache, type BrokerFilter, type KindFilter, type Summary } from "../contexts/CacheContext";
+
+type KindTotals = NonNullable<Summary["byKind"]>[number];
 import { HistoryCharts } from "./HistoryCharts";
 
 const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#06b6d4"];
@@ -146,52 +148,50 @@ export function DashboardCharts({ fileId }: { fileId: string }) {
 
       {summary && (
         <div className="row row-cols-2 row-cols-sm-3 row-cols-lg-6 g-3">
-          <div className="col">
-            <div className="rounded border bg-light p-3">
-              <p className="small fw-medium text-secondary mb-1">N.º de ativos</p>
-              <p className="fw-semibold mb-0">{summary.etfCount}</p>
-              {summary.etfOnlyCount != null && summary.stockCount != null && (
-                <div className="small text-muted lh-sm mt-1">
-                  <div>{summary.etfOnlyCount} {summary.etfOnlyCount === 1 ? "ETF" : "ETFs"}</div>
-                  <div>
-                    {summary.stockCount} {summary.stockCount === 1 ? "ação" : "ações"}
+          {(
+            [
+              { label: "N.º de ativos", total: String(summary.etfCount), part: (k: KindTotals) => String(k.count) },
+              { label: "Total de unidades", total: formatUnits(summary.totalUnits), part: (k: KindTotals) => formatUnits(k.units) },
+              { label: "Total Investido", total: formatEur(summary.totalInvested), part: (k: KindTotals) => formatEur(k.invested) },
+              { label: "Total ACC", total: formatEur(summary.totalAcc), part: (k: KindTotals) => formatEur(k.profit), tone: (k: KindTotals) => k.profit },
+              { label: "Total €€", total: formatEur(summary.totalEuros), part: (k: KindTotals) => formatEur(k.current) },
+              {
+                label: "Profit %",
+                total: formatPct(summary.profitPercent),
+                totalTone: summary.profitPercent,
+                part: (k: KindTotals) => (k.invested > 0 ? formatPct(k.profitPercent) : "—"),
+                tone: (k: KindTotals) => (k.invested > 0 ? k.profitPercent : 0),
+              },
+            ] as { label: string; total: string; totalTone?: number; part: (k: KindTotals) => string; tone?: (k: KindTotals) => number }[]
+          ).map((tile) => (
+            <div key={tile.label} className="col">
+              <div className="rounded border bg-light p-3 h-100">
+                <p className="small fw-medium text-secondary mb-1">{tile.label}</p>
+                <p
+                  className={`fw-semibold mb-0 ${
+                    tile.totalTone === undefined ? "" : tile.totalTone >= 0 ? "text-success" : "text-danger"
+                  }`}
+                >
+                  {tile.total}
+                </p>
+                {summary.byKind && (
+                  <div className="small lh-sm mt-1">
+                    {summary.byKind.map((k) => {
+                      const tone = tile.tone?.(k);
+                      return (
+                        <div key={k.kind} className="d-flex justify-content-between gap-2">
+                          <span className="text-muted">{k.kind === "ETF" ? "ETFs" : "Ações"}</span>
+                          <span className={tone === undefined || tone === 0 ? "text-muted" : tone > 0 ? "text-success" : "text-danger"}>
+                            {tile.part(k)}
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
-          </div>
-          <div className="col">
-            <div className="rounded border bg-light p-3">
-              <p className="small fw-medium text-secondary mb-1">Total de unidades</p>
-              <p className="fw-semibold mb-0">{formatUnits(summary.totalUnits)}</p>
-            </div>
-          </div>
-          <div className="col">
-            <div className="rounded border bg-light p-3">
-              <p className="small fw-medium text-secondary mb-1">Total Investido</p>
-              <p className="fw-semibold mb-0">{formatEur(summary.totalInvested)}</p>
-            </div>
-          </div>
-          <div className="col">
-            <div className="rounded border bg-light p-3">
-              <p className="small fw-medium text-secondary mb-1">Total ACC</p>
-              <p className="fw-semibold mb-0">{formatEur(summary.totalAcc)}</p>
-            </div>
-          </div>
-          <div className="col">
-            <div className="rounded border bg-light p-3">
-              <p className="small fw-medium text-secondary mb-1">Total €€</p>
-              <p className="fw-semibold mb-0">{formatEur(summary.totalEuros)}</p>
-            </div>
-          </div>
-          <div className="col">
-            <div className="rounded border bg-light p-3">
-              <p className="small fw-medium text-secondary mb-1">Profit %</p>
-              <p className={`fw-semibold mb-0 ${summary.profitPercent >= 0 ? "text-success" : "text-danger"}`}>
-                {formatPct(summary.profitPercent)}
-              </p>
-            </div>
-          </div>
+          ))}
         </div>
       )}
 
