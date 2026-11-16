@@ -1,9 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import { fetchCloseSeries, toYahooSymbol, type DailyCloses } from "@/lib/yahoo";
 import { getTer } from "./etfTer";
+import { loadScores } from "./stockData";
 
 /**
- * "Reforçar": quão boa é a altura para comprar mais de cada ETF da carteira.
+ * "Reforçar": quão boa é a altura para comprar mais de cada ETF ou ação da carteira.
  *
  * Nota 0–100 (100 = melhor altura), média ponderada de sinais com limites fixos:
  *   Desconto face ao máximo de 52 semanas  30%   0% → 0 · −20% ou mais → 100
@@ -11,6 +12,7 @@ import { getTer } from "./etfTer";
  *   RSI (14 dias)                          15%   70 → 0 · 30 → 100
  *   Posição no intervalo do último ano     10%   máximo → 0 · mínimo → 100
  *   Valuation do índice (só S&P 500)       20%   P/E +20% vs mediana 5 anos → 0 · −20% → 100
+ *   Ações do S&P 500: nota de Valuation do radar (0–100) no lugar da do índice, 20%.
  * Sinais em falta saem da média (pesos renormalizados).
  *
  * Mostra se o ETF está em desconto face ao próprio histórico; não prevê o que vai acontecer.
@@ -133,6 +135,10 @@ export type ReinforceEtf = {
   name: string | null;
   currency: string;
   price: number | null;
+  /** "ETF" ou "STOCK" */
+  kind: string;
+  /** Ações do S&P 500: notas do radar */
+  radar: { quality: number | null; valuation: number | null; qualityLabel: string; valuationLabel: string } | null;
   /** Custo de gestão anual em % (TER), se conhecido. */
   ter: number | null;
   score: number | null;
@@ -167,10 +173,14 @@ async function fetchYahooCurrency(symbol: string) {
   return String(json?.chart?.result?.[0]?.meta?.currency ?? "EUR");
 }
 
+type RadarScore = NonNullable<ReinforceEtf["radar"]>;
+
 async function evaluateEtf(
   ticker: string,
   name: string | null,
   alertedAt: Date | null,
+  kind = "ETF",
+  radar: RadarScore | null = null,
 ): Promise<ReinforceEtf> {
   const symbol = toYahooSymbol(ticker);
   const idxDef = INDEX_UNIVERSE[baseTicker(ticker)];
@@ -179,6 +189,8 @@ async function evaluateEtf(
     name,
     currency: "EUR",
     price: null,
+    kind,
+    radar,
     ter: getTer(ticker),
     score: null,
     label: reinforceLabel(null),
@@ -253,6 +265,15 @@ async function evaluateEtf(
       score: clamp(((20 - index.diffPct) / 40) * 100),
     });
   }
+  if (radar && radar.valuation !== null) {
+    signals.push({
+      key: "radar",
+      label: "Valuation no radar (vs S&P 500)",
+      weight: 20,
+      value: `${radar.valuation}/100 · ${radar.valuationLabel}`,
+      score: radar.valuation,
+    });
+  }
   const ok = signals.filter((s) => s.score !== null);
   const w = ok.reduce((s, x) => s + x.weight, 0);
   const score = w ? Math.round(ok.reduce((s, x) => s + x.score! * x.weight, 0) / w) : null;
@@ -262,6 +283,7 @@ async function evaluateEtf(
   if (vsMa !== null) parts.push(`${vsMa < 0 ? "abaixo" : "acima"} da média de 200 dias (${pctTxt(vsMa)})`);
   if (rsi !== null) parts.push(rsi <= 30 ? `sobrevendido (RSI ${rsi.toFixed(0)})` : rsi >= 70 ? `sobrecomprado (RSI ${rsi.toFixed(0)})` : `RSI ${rsi.toFixed(0)}`);
   if (index) parts.push(`índice ${index.diffPct > 0 ? "mais caro" : "mais barato"} que a média de 5 anos (${pctTxt(index.diffPct)})`);
+  if (radar && radar.valuation !== null) parts.push(`valuation ${radar.valuationLabel.toLowerCase()} no radar`);
 
   const maBySeries: (number | null)[] = closes.map((_, i) => (i >= 199 ? closes.slice(i - 199, i + 1).reduce((s, c) => s + c, 0) / 200 : null));
   const offset = series.length - lastYear.length;
@@ -270,6 +292,8 @@ async function evaluateEtf(
     name,
     currency,
     price,
+    kind,
+    radar,
     ter: getTer(ticker),
     score,
     label: reinforceLabel(score),
@@ -286,8 +310,34 @@ async function evaluateEtf(
 }
 
 export async function evaluatePortfolioEtfs(
-  watches: { ticker: string; name: string | null; alertedAt: Date | null }[],
+  watches: { ticker: string; name: string | null; alertedAt: Date | null; category?: string | null }[],
 ): Promise<ReinforceEtf[]> {
-  const out = await Promise.all(watches.map((w) => evaluateEtf(w.ticker, w.name, w.alertedAt)));
+  // Notas do radar para as ações (só existem para o S&P 500)
+  const radar = new Map<string, RadarScore>();
+  if (watches.some((w) => w.category === "STOCK")) {
+    try {
+      for (const sc of (await loadScores()).scores) {
+        radar.set(sc.symbol.replace(/[.-]/g, ""), {
+          quality: sc.quality,
+          valuation: sc.valuation,
+          qualityLabel: sc.qualityLabel,
+          valuationLabel: sc.valuationLabel,
+        });
+      }
+    } catch (e) {
+      console.error("[reinforce] radar", e);
+    }
+  }
+  const out = await Promise.all(
+    watches.map((w) =>
+      evaluateEtf(
+        w.ticker,
+        w.name,
+        w.alertedAt,
+        w.category ?? "ETF",
+        w.category === "STOCK" ? (radar.get(baseTicker(w.ticker).replace(/[.-]/g, "")) ?? null) : null,
+      ),
+    ),
+  );
   return out.sort((a, b) => (b.score ?? -1) - (a.score ?? -1));
 }

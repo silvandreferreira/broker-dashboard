@@ -55,3 +55,7 @@ next-env.d.ts
 
 # Screenshots de referência (não versionar)
 /clareza/
+
+# Exports de corretoras (dados pessoais)
+/xls/
+*.csv

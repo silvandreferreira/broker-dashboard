@@ -10,7 +10,8 @@ import { INVESTMENT_PLAN, MY_TRADES, type Product } from "@/lib/assetFilter";
  *   - por cada ticker há uma linha-resumo (Type vazio, Category preenchida) seguida
  *     de uma linha por lote (Type = BUY/SELL, Category vazia).
  *
- * Só são lidos os lotes (para não contar a dobrar) e só de instrumentos ETF.
+ * Só são lidos os lotes (para não contar a dobrar) e só de ETFs e ações (categoria
+ * "STC" na XTB, guardada como "STOCK").
  * Cada lote fica marcado com o produto ("My Trades" ou "Investment Plan") para o
  * dashboard poder incluir ou excluir os planos de investimento.
  * Valores monetários (Value, Gross Profit) vêm na moeda da conta (EUR);
@@ -35,7 +36,7 @@ export type AssetRow = {
 
 export type ParseResult = {
   rows: AssetRow[];
-  /** Tickers ignorados por não serem ETF (ex.: ações, ETC). */
+  /** Tickers ignorados por não serem ETF nem ação (ex.: ETC, CFD). */
   skippedTickers: string[];
   /** N.º de lotes de planos de investimento importados. */
   investmentPlanLots: number;
@@ -46,8 +47,8 @@ export type ParseResult = {
 
 const INVESTMENT_PLAN_RE = /investment\s*plans?/i;
 
-/** Categorias incluídas no dashboard. */
-const INCLUDED_CATEGORIES = new Set(["ETF"]);
+/** Categoria XTB → categoria guardada. Outras categorias são ignoradas. */
+const CATEGORY_MAP: Record<string, string> = { ETF: "ETF", STC: "STOCK", STK: "STOCK", STOCK: "STOCK", STOCKS: "STOCK" };
 
 const norm = (v: unknown) => String(v ?? "").trim().toLowerCase();
 
@@ -158,8 +159,8 @@ export function parseXtbOpenPositions(buffer: ArrayBuffer): ParseResult {
     if (!ticker || !/^(buy|sell)$/i.test(String(cell(r, c.type)).trim())) continue;
 
     const info = meta.get(ticker);
-    const category = (info?.category || String(cell(r, c.category)).trim()).toUpperCase();
-    if (!INCLUDED_CATEGORIES.has(category)) {
+    const category = CATEGORY_MAP[(info?.category || String(cell(r, c.category)).trim()).toUpperCase()];
+    if (!category) {
       skipped.add(ticker);
       continue;
     }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import {
   BarChart,
   Bar,
@@ -14,15 +14,36 @@ import {
   Pie,
   Cell,
 } from "recharts";
-import { useCache } from "../contexts/CacheContext";
+import { useCache, type BrokerFilter, type KindFilter } from "../contexts/CacheContext";
 import { HistoryCharts } from "./HistoryCharts";
 
 const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#06b6d4"];
 
+const BROKER_LABEL: Record<string, string> = { XTB: "XTB", T212: "Trading 212" };
+const BROKER_OPTIONS: { value: BrokerFilter; label: string }[] = [
+  { value: "all", label: "Todas" },
+  { value: "XTB", label: "XTB" },
+  { value: "T212", label: "Trading 212" },
+];
+const KIND_OPTIONS: { value: KindFilter; label: string }[] = [
+  { value: "all", label: "Tudo" },
+  { value: "ETF", label: "ETFs" },
+  { value: "STOCK", label: "Ações" },
+];
+
 export function DashboardCharts({ fileId }: { fileId: string }) {
-  const { getDashboardData, loadDashboard, includePlans, setIncludePlans } = useCache();
+  const { getDashboardData, loadDashboard, includePlans, setIncludePlans, broker, setBroker, kind, setKind } = useCache();
   const data = getDashboardData(fileId);
   const [error, setError] = useState<{ fileId: string; message: string } | null>(null);
+  /** Tickers com as sublinhas (uma por compra) abertas */
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const toggleExpanded = (ticker: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(ticker)) next.delete(ticker);
+      else next.add(ticker);
+      return next;
+    });
   const currentError = error?.fileId === fileId ? error.message : null;
   const loading = data == null && currentError == null;
 
@@ -40,7 +61,33 @@ export function DashboardCharts({ fileId }: { fileId: string }) {
   }, [fileId, data, loadDashboard]);
 
   const planToggle = (
-    <div className="d-flex flex-wrap align-items-center gap-2">
+    <div className="d-flex flex-wrap align-items-center gap-3">
+      <div className="btn-group btn-group-sm" role="group" aria-label="Corretora">
+        {BROKER_OPTIONS.map((o) => (
+          <button
+            key={o.value}
+            type="button"
+            className={`btn ${broker === o.value ? "btn-primary" : "btn-outline-primary"}`}
+            aria-pressed={broker === o.value}
+            onClick={() => setBroker(o.value)}
+          >
+            {o.label}
+          </button>
+        ))}
+      </div>
+      <div className="btn-group btn-group-sm" role="group" aria-label="Tipo de ativo">
+        {KIND_OPTIONS.map((o) => (
+          <button
+            key={o.value}
+            type="button"
+            className={`btn ${kind === o.value ? "btn-secondary" : "btn-outline-secondary"}`}
+            aria-pressed={kind === o.value}
+            onClick={() => setKind(o.value)}
+          >
+            {o.label}
+          </button>
+        ))}
+      </div>
       <div className="form-check form-switch mb-0">
         <input
           className="form-check-input"
@@ -83,6 +130,7 @@ export function DashboardCharts({ fileId }: { fileId: string }) {
   if (!data) return null;
 
   const { summary, byYear, investedVsProfitByYear, byTicker, byIndexGroup } = data;
+  const byBroker = data.byBroker ?? [];
 
   const formatEur = (n: number) =>
     new Intl.NumberFormat("pt-PT", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n);
@@ -100,7 +148,7 @@ export function DashboardCharts({ fileId }: { fileId: string }) {
         <div className="row row-cols-2 row-cols-sm-3 row-cols-lg-6 g-3">
           <div className="col">
             <div className="rounded border bg-light p-3">
-              <p className="small fw-medium text-secondary mb-1">N.º de ETFs</p>
+              <p className="small fw-medium text-secondary mb-1">N.º de ativos</p>
               <p className="fw-semibold mb-0">{summary.etfCount}</p>
             </div>
           </div>
@@ -136,6 +184,42 @@ export function DashboardCharts({ fileId }: { fileId: string }) {
               </p>
             </div>
           </div>
+        </div>
+      )}
+
+      {byBroker.length > 1 && (
+        <div className="row g-3">
+          {byBroker.map((b) => (
+            <div key={b.broker} className="col-12 col-md-6">
+              <div className="rounded border bg-white p-3 h-100">
+                <div className="d-flex justify-content-between align-items-baseline mb-2">
+                  <h3 className="h6 mb-0">{BROKER_LABEL[b.broker] ?? b.broker}</h3>
+                  <span className="small text-muted">
+                    {b.weight.toFixed(0)}% da carteira · {b.positions} {b.positions === 1 ? "ativo" : "ativos"}
+                  </span>
+                </div>
+                <div className="progress mb-2" style={{ height: 6 }} role="progressbar" aria-label={`Peso da ${BROKER_LABEL[b.broker] ?? b.broker}`} aria-valuenow={b.weight} aria-valuemin={0} aria-valuemax={100}>
+                  <div className="progress-bar" style={{ width: `${b.weight}%` }} />
+                </div>
+                <div className="d-flex justify-content-between small">
+                  <div>
+                    <div className="text-muted">Investido</div>
+                    <div className="fw-semibold">{formatEur(b.invested)}</div>
+                  </div>
+                  <div>
+                    <div className="text-muted">Valor</div>
+                    <div className="fw-semibold">{formatEur(b.current)}</div>
+                  </div>
+                  <div className="text-end">
+                    <div className="text-muted">Lucro</div>
+                    <div className={`fw-semibold ${b.profit >= 0 ? "text-success" : "text-danger"}`}>
+                      {formatEur(b.profit)} ({formatPct(b.profitPercent)})
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
@@ -220,13 +304,18 @@ export function DashboardCharts({ fileId }: { fileId: string }) {
 
       {byTicker.length > 0 && (
         <div className="rounded border bg-white p-4">
-          <h3 className="h6 mb-3">f. Unidades por ETF</h3>
+          <h3 className="h6 mb-1">f. Unidades por ativo</h3>
+          <p className="small text-muted mb-2">
+            Toca num ativo para ver cada compra: data, corretora, preço pago por unidade e quanto estás a ganhar ou a
+            perder nessa compra. Preço em € por unidade (inclui comissões de câmbio).
+          </p>
           <div className="table-responsive">
             <table className="table table-sm small align-middle mb-0">
               <thead>
                 <tr>
-                  <th>ETF</th>
+                  <th>Ativo</th>
                   <th className="text-end">Unidades</th>
+                  <th className="text-end">Preço médio</th>
                   <th className="text-end">Investido</th>
                   <th className="text-end">Valor</th>
                   <th className="text-end">Lucro</th>
@@ -236,13 +325,54 @@ export function DashboardCharts({ fileId }: { fileId: string }) {
                 {byTicker.map((t) => {
                   const profit = t.current - t.invested;
                   const pct = t.invested > 0 ? (profit / t.invested) * 100 : 0;
+                  const lots = t.lots ?? [];
+                  const isOpen = expanded.has(t.ticker);
                   return (
-                    <tr key={t.ticker}>
+                    <Fragment key={t.ticker}>
+                    <tr
+                      onClick={lots.length ? () => toggleExpanded(t.ticker) : undefined}
+                      style={lots.length ? { cursor: "pointer" } : undefined}
+                    >
                       <td>
-                        <div className="fw-medium">{t.name ?? t.ticker}</div>
-                        <div className="text-muted">{t.ticker}</div>
+                        <div className="fw-medium d-flex align-items-center gap-1">
+                          {lots.length > 0 && (
+                            <button
+                              type="button"
+                              className="btn btn-link btn-sm p-0 text-body"
+                              aria-expanded={isOpen}
+                              aria-label={`${isOpen ? "Esconder" : "Ver"} as ${lots.length} compras de ${t.ticker}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleExpanded(t.ticker);
+                              }}
+                            >
+                              <i className={`bi ${isOpen ? "bi-chevron-down" : "bi-chevron-right"}`} />
+                            </button>
+                          )}
+                          {t.name ?? t.ticker}
+                          {lots.length > 0 && (
+                            <span className="text-muted fw-normal small">
+                              · {lots.length} {lots.length === 1 ? "compra" : "compras"}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-muted d-flex flex-wrap align-items-center gap-1">
+                          {t.ticker}
+                          {t.category === "STOCK" && <span className="badge text-bg-primary">Ação</span>}
+                          {(t.brokers ?? []).map((b) => (
+                            <span key={b.broker} className="badge text-bg-light border">
+                              {BROKER_LABEL[b.broker] ?? b.broker}
+                            </span>
+                          ))}
+                        </div>
+                        {(t.brokers?.length ?? 0) > 1 && (
+                          <div className="text-muted">
+                            {t.brokers!.map((b) => `${BROKER_LABEL[b.broker] ?? b.broker}: ${formatUnits(b.units)} un. · ${formatEur2(b.current)}`).join(" | ")}
+                          </div>
+                        )}
                       </td>
                       <td className="text-end">{formatUnits(t.units)}</td>
+                      <td className="text-end">{t.units > 0 ? formatEur2(t.invested / t.units) : "—"}</td>
                       <td className="text-end">{formatEur2(t.invested)}</td>
                       <td className="text-end">{formatEur2(t.current)}</td>
                       <td className={`text-end ${profit >= 0 ? "text-success" : "text-danger"}`}>
@@ -250,6 +380,32 @@ export function DashboardCharts({ fileId }: { fileId: string }) {
                         <div className="small">{formatPct(pct)}</div>
                       </td>
                     </tr>
+                    {isOpen &&
+                      lots.map((l, i) => {
+                        const lp = l.current - l.invested;
+                        const lpct = l.invested > 0 ? (lp / l.invested) * 100 : 0;
+                        return (
+                          <tr key={`${t.ticker}-${i}`} className="table-light">
+                            <td className="ps-4">
+                              <i className="bi bi-arrow-return-right text-muted me-1" />
+                              {l.openedAt ? new Date(l.openedAt).toLocaleDateString("pt-PT") : "Sem data"}
+                              <span className="badge text-bg-light border ms-1">{BROKER_LABEL[l.broker] ?? l.broker}</span>
+                              {l.product === "Investment Plan" && (
+                                <span className="badge text-bg-light border ms-1">Plano</span>
+                              )}
+                            </td>
+                            <td className="text-end">{formatUnits(l.units)}</td>
+                            <td className="text-end">{l.units > 0 ? formatEur2(l.invested / l.units) : "—"}</td>
+                            <td className="text-end">{formatEur2(l.invested)}</td>
+                            <td className="text-end">{formatEur2(l.current)}</td>
+                            <td className={`text-end ${lp >= 0 ? "text-success" : "text-danger"}`}>
+                              {formatEur2(lp)}
+                              <div className="small">{formatPct(lpct)}</div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </Fragment>
                   );
                 })}
               </tbody>

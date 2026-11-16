@@ -3,7 +3,7 @@ import { requireApprovedUser } from "@/lib/apiAuth";
 import { prisma } from "@/lib/prisma";
 import { ALERT_HOURS_LISBON, DROP_THRESHOLD_PCT, syncWatchlist } from "@/lib/marketAlerts";
 
-/** GET /api/alerts — config dos alertas (ETFs vigiados + n.º de dispositivos com push). */
+/** GET /api/alerts — config dos alertas (ETFs e ações vigiados + n.º de dispositivos com push). */
 export async function GET() {
   const auth = await requireApprovedUser();
   if (auth.error) return auth.error;
@@ -22,11 +22,12 @@ export async function GET() {
       enabled: w.enabled,
       alertedAt: w.alertedAt,
       inLatestFile: w.inLatestFile,
+      category: w.category,
     })),
   });
 }
 
-/** PATCH /api/alerts { ticker, enabled } — ligar/desligar um ETF. */
+/** PATCH /api/alerts { ticker, enabled } — ligar/desligar um ETF ou ação. */
 export async function PATCH(req: NextRequest) {
   const auth = await requireApprovedUser();
   if (auth.error) return auth.error;
@@ -38,6 +39,6 @@ export async function PATCH(req: NextRequest) {
     where: { userId: auth.userId, ticker: body.ticker },
     data: { enabled: body.enabled },
   });
-  if (res.count === 0) return NextResponse.json({ error: "ETF não encontrado" }, { status: 404 });
+  if (res.count === 0) return NextResponse.json({ error: "Ativo não encontrado" }, { status: 404 });
   return NextResponse.json({ ok: true });
 }

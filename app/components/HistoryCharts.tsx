@@ -131,7 +131,7 @@ export function HistoryCharts({ fileId }: { fileId: string }) {
         Valores estimados com preços de fecho do Yahoo Finance até {asOf}.
         {diff != null && (
           <>
-            {" "}Valor estimado {formatEur2(last!.value)} vs XTB {formatEur2(data.xtbValue!)} (diferença{" "}
+            {" "}Valor estimado {formatEur2(last!.value)} vs corretoras {formatEur2(data.xtbValue!)} (diferença{" "}
             {formatEur2(diff)}, {((diff / data.xtbValue!) * 100).toFixed(1)}%).
           </>
         )}{" "}

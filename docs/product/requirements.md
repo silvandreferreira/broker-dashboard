@@ -17,14 +17,17 @@ Documentation of **Broker Dashboard** functionality and requirements, organised 
 
 ---
 
-## 2. File upload (XLSX)
+## 2. File upload (XTB XLSX and Trading 212 CSV)
 
 | Requirement | Description |
 |-------------|-------------|
-| **Format** | Only **XLSX** files (export from XTB broker). |
+| **Format** | **XTB**: XLSX report. **Trading 212**: history CSV (History → Export). The broker is detected from the file (extension + CSV header). |
+| **Entries and documents** | An entry (`UploadedFile`) holds one or more broker documents (`BrokerDocument`): at most one XTB report plus any number of Trading 212 CSVs. On upload the user picks **"Nova entrada"** or **"Juntar a: <entry>"**; each entry in the list also has an **"Adicionar corretora"** button. Each document can be removed on its own (the last one only by deleting the entry). |
+| **Trading 212** | The CSV is a list of orders, not a snapshot. Buy/sell rows are kept (deposits, dividends, etc. ignored) and stored on the document; open positions are rebuilt with **FIFO** from the union of all T212 CSVs of the entry, de-duplicated by order ID (overlapping exports are safe). Invested = CSV "Total" in EUR (includes the FX fee); orders paid in another currency are converted with that day's Yahoo FX rate. Current value = latest Yahoo close in EUR. Sells without a matching buy in the files (positions closed before the exported period) are ignored and reported as a warning. ETF = ISIN IE/LU or UCITS-style name, otherwise stock. Tickers are stored as `TICKER.US` / `TICKER.DE` / `TICKER.UK` so the same instrument at both brokers is grouped. |
+| **Entry date** | The most recent date of its documents (XTB report date, or T212 import time); used by the history charts. |
 | **Sheet and columns** | XTB report exported from xStation 5 → History → Export (Excel). Reads sheet **"Open Positions"**; columns used: Ticker, Instrument/Position, Category, Type, Volume, Value, Open price, Open time (UTC), Gross Profit. Only lot rows (Type = BUY/SELL) are read; per-ticker summary rows are used only for category and name. |
 | **Investment plans** | Lots are tagged with their Product (**My Trades** or **Investment Plan**, column `Asset.product`). A **"Incluir planos de investimento"** switch on the dashboard (default **on**) includes/excludes plan lots in all figures and charts. The choice is kept in `sessionStorage` for the browser session (survives reloads, not "Limpar cache") and resets to on at logout. Old uploads (no product) count as My Trades. |
-| **ETFs only** | Only instruments with Category **ETF** are imported. Stocks, ETCs, etc. are ignored (listed in the upload response as `skippedTickers`). |
+| **ETFs and stocks** | XTB instruments with Category **ETF** or **STC** (stored as `STOCK`) are imported. ETCs, CFDs, etc. are ignored (listed in the upload response as `skippedTickers`). |
 | **Values** | Current value = `Value`; profit = `Gross Profit`; invested = `Value − Gross Profit` (always in account currency, even for instruments quoted in USD). |
 | **One file per year** | The intended use is one XTB export per year; the user picks which file the dashboard shows. |
 | **Year** | The year of each lot is derived from the **"Open time (UTC)"** field. |
@@ -49,6 +52,8 @@ Documentation of **Broker Dashboard** functionality and requirements, organised 
 ---
 
 ## 4. Dashboard (views and charts)
+
+Selectors above the charts: broker **Todas | XTB | Trading 212** and asset type **Tudo | ETFs | Ações** (next to the investment-plan switch); all figures, charts and the history respect them. With more than one broker, a card per broker shows invested, value, profit and weight. The units table marks stocks ("Ação") and each broker, shows the average price paid per unit (€), and for an instrument held at both, the split per broker. Tapping a row opens one sub-row per purchase (open lot): date, broker, plan badge, units, price paid per unit in €, invested, current value and profit/loss in € and %. Stocks are grouped as "Ações individuais" in the index pie.
 
 | Requirement | Description |
 |-------------|-------------|
@@ -106,6 +111,8 @@ Documentation of **Broker Dashboard** functionality and requirements, organised 
 
 ## 9. Market drop alerts (push notifications)
 
+ETFs **and stocks** of the latest entry (all brokers) are watched.
+
 | Requirement | Description |
 |-------------|-------------|
 | **Rule** | Alert when an ETF's current price is **more than 10% below its highest daily close of the last 52 weeks** (in the ETF's own currency, no FX). |
@@ -129,7 +136,7 @@ Documentation of **Broker Dashboard** functionality and requirements, organised 
 
 | Requirement | Description |
 |-------------|-------------|
-| **ETFs** | The ETFs of the last uploaded file (same list as the drop alerts). |
+| **ETFs and stocks** | The ETFs and stocks of the last entry, all brokers (same list as the drop alerts), shown in two sections. Stocks use the same price signals; for S&P 500 stocks the radar Valuation score (0–100) is the 20% valuation signal, and the card shows the radar Quality/Valuation. |
 | **Score** | 0–100, higher = better moment to buy more, relative to the ETF's own history: drop from the 52-week high 30% (0% → 0, −20% → 100), distance to the 200-day average 25% (+10% → 0, −10% → 100), 14-day RSI 15% (70 → 0, 30 → 100), position in the 1-year range 10%. For S&P 500 ETFs (SXR8, VUAA, SPYL, CSPX, VUSA) and the S&P 500 IT ETF (QDVE), the index P/E vs its 5-year median 20% (+20% → 0, −20% → 100), computed from the stock radar data (cap-weighted harmonic mean, P/E outside 3–500 ignored). Missing signals are left out and weights renormalised. |
 | **Labels** | ≥70 "Boa altura para reforçar", ≥55 "Altura favorável", ≥40 "Neutro", ≥25 "Pouco favorável", otherwise "Caro face ao histórico". |
 | **Legend** | A "Como ler a nota" box above the cards explains each label range in plain words. |
