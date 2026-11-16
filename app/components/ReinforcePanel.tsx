@@ -23,7 +23,7 @@ type Etf = {
   returns: { m1: number | null; m3: number | null; y1: number | null };
   chart: { date: string; close: number; ma200: number | null }[];
   index: { label: string; pe: number; peMedian5y: number; diffPct: number; forwardPe: number | null; history: { year: string; pe: number }[] } | null;
-  alert: { droppingOver10: boolean; alertedAt: string | null };
+  alert: { droppingOver10: boolean; dropPct?: number | null; alertedAt: string | null };
   error?: string;
 };
 type Data = { checkedAt: string; sourceFile: { fileName: string } | null; etfs: Etf[] };
@@ -119,7 +119,7 @@ function EtfCard({ etf }: { etf: Etf }) {
           {etf.alert.droppingOver10 && (
             <span className="badge text-bg-danger">
               <i className="bi bi-exclamation-triangle-fill me-1" />
-              Queda de mais de 10%
+              {etf.alert.dropPct != null ? `Queda de ${nf(etf.alert.dropPct, 1)}%` : "Queda de mais de 10%"}
             </span>
           )}
           {etf.alert.alertedAt && (
