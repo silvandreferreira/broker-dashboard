@@ -81,6 +81,8 @@ export async function GET(req: NextRequest) {
   }
 
   const etfCount = new Set(assets.map((a) => a.ticker)).size;
+  const etfOnlyCount = new Set(assets.filter((a) => a.category === "ETF").map((a) => a.ticker)).size;
+  const stockCount = new Set(assets.filter((a) => a.category === "STOCK").map((a) => a.ticker)).size;
   const totalUnits = assets.reduce((s, a) => s + a.quantity, 0);
   const totalInvested = assets.reduce((s, a) => s + a.investedValue, 0);
   const totalCurrent = assets.reduce((s, a) => s + a.currentValue, 0);
@@ -89,6 +91,8 @@ export async function GET(req: NextRequest) {
 
   const summary = {
     etfCount,
+    etfOnlyCount,
+    stockCount,
     totalUnits,
     totalInvested,
     totalAcc: totalCurrent - totalInvested,

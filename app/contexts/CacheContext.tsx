@@ -77,6 +77,8 @@ export type FilesResponse = {
 
 export type Summary = {
   etfCount: number;
+  etfOnlyCount?: number;
+  stockCount?: number;
   totalUnits: number;
   totalInvested: number;
   totalAcc: number;
