@@ -79,6 +79,15 @@ export type Summary = {
   etfCount: number;
   etfOnlyCount?: number;
   stockCount?: number;
+  byKind?: {
+    kind: "ETF" | "STOCK";
+    count: number;
+    units: number;
+    invested: number;
+    profit: number;
+    current: number;
+    profitPercent: number;
+  }[];
   totalUnits: number;
   totalInvested: number;
   totalAcc: number;
