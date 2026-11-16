@@ -150,6 +150,14 @@ export function DashboardCharts({ fileId }: { fileId: string }) {
             <div className="rounded border bg-light p-3">
               <p className="small fw-medium text-secondary mb-1">N.º de ativos</p>
               <p className="fw-semibold mb-0">{summary.etfCount}</p>
+              {summary.etfOnlyCount != null && summary.stockCount != null && (
+                <div className="small text-muted lh-sm mt-1">
+                  <div>{summary.etfOnlyCount} {summary.etfOnlyCount === 1 ? "ETF" : "ETFs"}</div>
+                  <div>
+                    {summary.stockCount} {summary.stockCount === 1 ? "ação" : "ações"}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
           <div className="col">
