@@ -10,23 +10,23 @@ import {
   type ReactNode,
 } from "react";
 
-// Preferência "incluir planos de investimento": por defeito ligada; guardada só durante
-// a sessão do browser (sessionStorage) e reposta no logout (resetIncludePlans).
+// Preferência "incluir planos de investimento": por defeito DESLIGADA; se o utilizador a ligar,
+// fica guardada só durante a sessão do browser (sessionStorage) e é reposta no logout (resetIncludePlans).
 const INCLUDE_PLANS_KEY = "broker-dashboard:includePlans";
 const INCLUDE_PLANS_EVENT = "broker-dashboard:includePlans-change";
 
 function readIncludePlans(): boolean {
   try {
-    return window.sessionStorage.getItem(INCLUDE_PLANS_KEY) !== "false";
+    return window.sessionStorage.getItem(INCLUDE_PLANS_KEY) === "true";
   } catch {
-    return true;
+    return false;
   }
 }
 
 function writeIncludePlans(value: boolean | null) {
   try {
-    if (value === null || value) window.sessionStorage.removeItem(INCLUDE_PLANS_KEY);
-    else window.sessionStorage.setItem(INCLUDE_PLANS_KEY, "false");
+    if (value === null || !value) window.sessionStorage.removeItem(INCLUDE_PLANS_KEY);
+    else window.sessionStorage.setItem(INCLUDE_PLANS_KEY, "true");
   } catch {
     /* sessionStorage indisponível: fica só em memória até ao próximo evento */
   }
@@ -38,7 +38,7 @@ function subscribeIncludePlans(callback: () => void) {
   return () => window.removeEventListener(INCLUDE_PLANS_EVENT, callback);
 }
 
-/** Repõe a preferência por defeito (planos incluídos). Chamar no logout. */
+/** Repõe a preferência por defeito (planos excluídos). Chamar no logout. */
 export function resetIncludePlans() {
   writeIncludePlans(null);
 }
@@ -171,7 +171,7 @@ export function CacheProvider({ children }: { children: ReactNode }) {
     dashboard: {},
     history: {},
   });
-  const includePlans = useSyncExternalStore(subscribeIncludePlans, readIncludePlans, () => true);
+  const includePlans = useSyncExternalStore(subscribeIncludePlans, readIncludePlans, () => false);
   const setIncludePlans = useCallback((value: boolean) => writeIncludePlans(value), []);
   const [broker, setBroker] = useState<BrokerFilter>("all");
   const [kind, setKind] = useState<KindFilter>("all");
