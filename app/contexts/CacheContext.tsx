@@ -43,14 +43,31 @@ export function resetIncludePlans() {
   writeIncludePlans(null);
 }
 
-const cacheKey = (fileId: string, includePlans: boolean) => `${fileId}|${includePlans ? "all" : "noplans"}`;
+export type BrokerFilter = "all" | "XTB" | "T212";
+export type KindFilter = "all" | "ETF" | "STOCK";
+
+const cacheKey = (fileId: string, includePlans: boolean, broker: BrokerFilter, kind: KindFilter) =>
+  `${fileId}|${includePlans ? "all" : "noplans"}|${broker}|${kind}`;
+const filterQuery = (includePlans: boolean, broker: BrokerFilter, kind: KindFilter) =>
+  `includePlans=${includePlans}&broker=${broker}&kind=${kind}`;
+
+export type BrokerDocumentInfo = {
+  id: string;
+  broker: "XTB" | "T212";
+  fileName: string;
+  uploadedAt: string;
+  reportDate: string | null;
+  _count: { assets: number };
+};
 
 export type UploadedFile = {
   id: string;
   fileName: string;
   uploadedAt: string;
   isActive: boolean;
+  reportDate?: string | null;
   _count: { assets: number };
+  documents?: BrokerDocumentInfo[];
 };
 
 export type FilesResponse = {
@@ -67,14 +84,35 @@ export type Summary = {
   profitPercent: number;
 };
 
+export type BrokerTotals = {
+  broker: string;
+  positions: number;
+  invested: number;
+  current: number;
+  profit: number;
+  profitPercent: number;
+  weight: number;
+};
+
 export type DashboardData = {
   needsReupload?: boolean;
   hasInvestmentPlans?: boolean;
+  available?: { brokers: string[]; kinds: string[] };
+  byBroker?: BrokerTotals[];
   summary: Summary | null;
   byCategory: { name: string; value: number; current: number }[];
   byYear: { year: number; profitPercent: number; invested: number; profit: number }[];
   investedVsProfitByYear: { year: string; investido: number; lucro: number }[];
-  byTicker: { ticker: string; name: string | null; units: number; invested: number; current: number }[];
+  byTicker: {
+    ticker: string;
+    name: string | null;
+    category?: string | null;
+    units: number;
+    invested: number;
+    current: number;
+    brokers?: { broker: string; units: number; invested: number; current: number }[];
+    lots?: { openedAt: string | null; broker: string; product: string | null; units: number; invested: number; current: number }[];
+  }[];
   byIndexGroup: { name: string; value: number; current: number }[];
 };
 
@@ -118,6 +156,10 @@ type CacheContextValue = {
   loadHistory: (fileId: string) => Promise<void>;
   includePlans: boolean;
   setIncludePlans: (value: boolean) => void;
+  broker: BrokerFilter;
+  setBroker: (value: BrokerFilter) => void;
+  kind: KindFilter;
+  setKind: (value: KindFilter) => void;
   clearCache: () => void;
 };
 
@@ -131,6 +173,8 @@ export function CacheProvider({ children }: { children: ReactNode }) {
   });
   const includePlans = useSyncExternalStore(subscribeIncludePlans, readIncludePlans, () => true);
   const setIncludePlans = useCallback((value: boolean) => writeIncludePlans(value), []);
+  const [broker, setBroker] = useState<BrokerFilter>("all");
+  const [kind, setKind] = useState<KindFilter>("all");
 
   const loadFiles = useCallback(async () => {
     if (state.files !== null) return;
@@ -149,15 +193,15 @@ export function CacheProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const getDashboardData = useCallback(
-    (fileId: string) => state.dashboard[cacheKey(fileId, includePlans)] ?? null,
-    [state.dashboard, includePlans],
+    (fileId: string) => state.dashboard[cacheKey(fileId, includePlans, broker, kind)] ?? null,
+    [state.dashboard, includePlans, broker, kind],
   );
 
   const loadDashboard = useCallback(async (fileId: string) => {
-    const key = cacheKey(fileId, includePlans);
+    const key = cacheKey(fileId, includePlans, broker, kind);
     if (state.dashboard[key] != null) return;
     const res = await fetch(
-      `/api/dashboard?fileId=${encodeURIComponent(fileId)}&includePlans=${includePlans}`,
+      `/api/dashboard?fileId=${encodeURIComponent(fileId)}&${filterQuery(includePlans, broker, kind)}`,
     );
     if (!res.ok) throw new Error("Falha ao carregar dashboard");
     const data: DashboardData = await res.json();
@@ -165,18 +209,18 @@ export function CacheProvider({ children }: { children: ReactNode }) {
       ...s,
       dashboard: { ...s.dashboard, [key]: data },
     }));
-  }, [state.dashboard, includePlans]);
+  }, [state.dashboard, includePlans, broker, kind]);
 
   const getHistoryData = useCallback(
-    (fileId: string) => state.history[cacheKey(fileId, includePlans)] ?? null,
-    [state.history, includePlans],
+    (fileId: string) => state.history[cacheKey(fileId, includePlans, broker, kind)] ?? null,
+    [state.history, includePlans, broker, kind],
   );
 
   const loadHistory = useCallback(async (fileId: string) => {
-    const key = cacheKey(fileId, includePlans);
+    const key = cacheKey(fileId, includePlans, broker, kind);
     if (state.history[key] != null) return;
     const res = await fetch(
-      `/api/dashboard/history?fileId=${encodeURIComponent(fileId)}&includePlans=${includePlans}`,
+      `/api/dashboard/history?fileId=${encodeURIComponent(fileId)}&${filterQuery(includePlans, broker, kind)}`,
     );
     if (!res.ok) throw new Error("Falha ao carregar evolução da carteira");
     const data: HistoryData = await res.json();
@@ -184,7 +228,7 @@ export function CacheProvider({ children }: { children: ReactNode }) {
       ...s,
       history: { ...s.history, [key]: data },
     }));
-  }, [state.history, includePlans]);
+  }, [state.history, includePlans, broker, kind]);
 
   const invalidateDashboard = useCallback((fileId: string) => {
     const drop = <T,>(m: Record<string, T>) =>
@@ -194,6 +238,8 @@ export function CacheProvider({ children }: { children: ReactNode }) {
 
   const clearCache = useCallback(() => {
     setState({ files: null, dashboard: {}, history: {} });
+    setBroker("all");
+    setKind("all");
   }, []);
 
   const value = useMemo<CacheContextValue>(
@@ -209,6 +255,10 @@ export function CacheProvider({ children }: { children: ReactNode }) {
       loadHistory,
       includePlans,
       setIncludePlans,
+      broker,
+      setBroker,
+      kind,
+      setKind,
       clearCache,
     }),
     [
@@ -223,6 +273,8 @@ export function CacheProvider({ children }: { children: ReactNode }) {
       loadHistory,
       includePlans,
       setIncludePlans,
+      broker,
+      kind,
       clearCache,
     ],
   );

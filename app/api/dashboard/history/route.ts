@@ -3,7 +3,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { isAdminEmail } from "@/lib/access";
 import { prisma } from "@/lib/prisma";
-import { dashboardAssetWhere, parseIncludePlans } from "@/lib/assetFilter";
+import { dashboardAssetWhere, parseDashboardFilters } from "@/lib/assetFilter";
+import { entryAsOf } from "@/lib/brokerDocuments";
 import { getDailyClosesEur } from "@/lib/yahoo";
 import { monthlyHistory, yearlyHistory, type HistoryLot } from "@/lib/portfolioHistory";
 
@@ -22,7 +23,7 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const fileId = searchParams.get("fileId");
-  const includePlans = parseIncludePlans(searchParams);
+  const filters = parseDashboardFilters(searchParams);
   if (!fileId) {
     return NextResponse.json({ error: "Missing fileId" }, { status: 400 });
   }
@@ -30,10 +31,11 @@ export async function GET(req: NextRequest) {
   const file = await prisma.uploadedFile.findFirst({
     where: { id: fileId, user: { email: session.user.email } },
     select: {
+      id: true,
       uploadedAt: true,
       reportDate: true,
       assets: {
-        where: dashboardAssetWhere(includePlans),
+        where: dashboardAssetWhere(filters),
         select: { ticker: true, quantity: true, investedValue: true, currentValue: true, openedAt: true },
       },
     },
@@ -58,7 +60,8 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  const asOf = file.reportDate ?? file.uploadedAt;
+  // A data mais recente dos documentos da entrada (XTB ou importação Trading 212)
+  const asOf = await entryAsOf(file.id, file.reportDate ?? file.uploadedAt);
   const year = asOf.getUTCFullYear();
   const firstOpen = new Date(Math.min(...lots.map((l) => l.openedAt.getTime())));
 
@@ -70,7 +73,7 @@ export async function GET(req: NextRequest) {
   const monthly = monthlyHistory(lots, series, year, asOf);
   const yearly = yearlyHistory(lots, series, asOf);
 
-  // Comparação com o valor que a XTB reporta (só para os tickers com preço)
+  // Comparação com o valor que as corretoras reportam (só para os tickers com preço)
   const xtbValue = file.assets
     .filter((a) => series.has(a.ticker))
     .reduce((s, a) => s + a.currentValue, 0);

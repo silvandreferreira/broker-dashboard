@@ -8,6 +8,7 @@ type Watch = {
   enabled: boolean;
   alertedAt: string | null;
   inLatestFile: boolean;
+  category?: string | null;
 };
 type AlertsConfig = {
   thresholdPct: number;
@@ -252,9 +253,9 @@ export function AlertsPanel() {
   return (
     <div>
       <p className="text-muted small">
-        Em dias úteis, às {hoursText} (hora de Lisboa), a app verifica os ETFs ligados abaixo e envia uma
-        notificação <strong>quando um ETF passa a estar mais de {threshold}% abaixo do máximo das últimas 52
-        semanas</strong>. Cada queda só é avisada uma vez; o ETF volta a poder gerar alerta depois de recuperar para
+        Em dias úteis, às {hoursText} (hora de Lisboa), a app verifica os ETFs e ações ligados abaixo e envia uma
+        notificação <strong>quando um ETF ou ação passa a estar mais de {threshold}% abaixo do máximo das últimas 52
+        semanas</strong>. Cada queda só é avisada uma vez; volta a poder gerar alerta depois de recuperar para
         menos de 8% abaixo do máximo. A hora exata pode variar até 59 minutos.
       </p>
 
@@ -324,7 +325,7 @@ export function AlertsPanel() {
       <div className="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
         <h3 className="h6 mb-0">
           <i className="bi bi-list-check me-2" />
-          ETFs a vigiar
+          ETFs e ações a vigiar
         </h3>
         <button type="button" className="btn btn-outline-secondary btn-sm" onClick={runCheck} disabled={checking}>
           {checking ? (
@@ -337,7 +338,7 @@ export function AlertsPanel() {
       </div>
       <p className="small text-muted mb-2">
         {config.sourceFile
-          ? `Lista criada a partir do último ficheiro carregado (${config.sourceFile.fileName}). ETFs novos em ficheiros futuros entram ligados.`
+          ? `Lista criada a partir do último ficheiro carregado (${config.sourceFile.fileName}). ETFs e ações novos (XTB e Trading 212) entram ligados.`
           : "Ainda não carregaste nenhum ficheiro."}
         {checkedAt && ` Cotações às ${new Date(checkedAt).toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" })}.`}
       </p>
@@ -352,7 +353,7 @@ export function AlertsPanel() {
           ) : (
             <>
               <i className="bi bi-check-circle-fill me-1" />
-              Nenhum ETF ligado está mais de {threshold}% abaixo do máximo de 52 semanas.
+              Nenhum ETF ou ação ligado está mais de {threshold}% abaixo do máximo de 52 semanas.
             </>
           )}
         </div>
@@ -363,7 +364,7 @@ export function AlertsPanel() {
           <thead>
             <tr>
               <th scope="col">Alerta</th>
-              <th scope="col">ETF</th>
+              <th scope="col">Ativo</th>
               <th scope="col" className="text-end">Preço</th>
               <th scope="col" className="text-end">Máx. 52 sem.</th>
               <th scope="col" className="text-end">Face ao máx.</th>
@@ -392,6 +393,7 @@ export function AlertsPanel() {
                       {w.ticker}
                     </label>
                     {w.name && <div className="text-muted text-truncate" style={{ maxWidth: 240 }}>{w.name}</div>}
+                    {w.category === "STOCK" && <span className="badge text-bg-primary me-1">Ação</span>}
                     {w.alertedAt && (
                       <span className="badge text-bg-light border me-1">
                         <i className="bi bi-bell-fill me-1" />

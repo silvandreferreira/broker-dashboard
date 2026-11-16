@@ -28,8 +28,13 @@ export async function GET() {
           fileName: true,
           uploadedAt: true,
           isActive: true,
+          reportDate: true,
           _count: {
             select: { assets: true },
+          },
+          documents: {
+            orderBy: { uploadedAt: "asc" },
+            select: { id: true, broker: true, fileName: true, uploadedAt: true, reportDate: true, _count: { select: { assets: true } } },
           },
         },
       },

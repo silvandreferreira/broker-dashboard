@@ -4,7 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { getDisplayNameForTicker } from "@/lib/etfIndexGroups";
 import { isAdminEmail } from "@/lib/access";
 import { prisma } from "@/lib/prisma";
-import { INVESTMENT_PLAN, dashboardAssetWhere, parseIncludePlans } from "@/lib/assetFilter";
+import { DASHBOARD_CATEGORIES, INVESTMENT_PLAN, dashboardAssetWhere, parseDashboardFilters } from "@/lib/assetFilter";
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   let fileId = searchParams.get("fileId");
-  const includePlans = parseIncludePlans(searchParams);
+  const filters = parseDashboardFilters(searchParams);
 
   if (!fileId) {
     const active = await prisma.uploadedFile.findFirst({
@@ -48,18 +48,28 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "User not found" }, { status: 400 });
   }
 
-  // Só ETFs (ver lib/xtbParser.ts). Ficheiros carregados com o parser antigo não têm categoria.
+  // ETFs e ações (ver lib/xtbParser.ts). Ficheiros carregados com o parser antigo não têm categoria.
   const fileWhere = { fileId, file: { userId: user.id } };
-  const [assets, totalAssets, etfAssets, planAssets] = await Promise.all([
-    prisma.asset.findMany({ where: { ...fileWhere, ...dashboardAssetWhere(includePlans) } }),
+  const known = { category: { in: [...DASHBOARD_CATEGORIES] } };
+  const [assets, totalAssets, etfAssets, planAssets, brokerRows, kindRows] = await Promise.all([
+    prisma.asset.findMany({ where: { ...fileWhere, ...dashboardAssetWhere(filters) } }),
     prisma.asset.count({ where: fileWhere }),
-    prisma.asset.count({ where: { ...fileWhere, category: "ETF" } }),
-    prisma.asset.count({ where: { ...fileWhere, category: "ETF", product: INVESTMENT_PLAN } }),
+    prisma.asset.count({ where: { ...fileWhere, ...known } }),
+    prisma.asset.count({ where: { ...fileWhere, ...known, product: INVESTMENT_PLAN } }),
+    prisma.asset.findMany({ where: { ...fileWhere, ...known }, select: { broker: true }, distinct: ["broker"] }),
+    prisma.asset.findMany({ where: { ...fileWhere, ...known }, select: { category: true }, distinct: ["category"] }),
   ]);
+  // O que existe na entrada (para o UI só mostrar seletores que fazem sentido)
+  const available = {
+    brokers: [...new Set(brokerRows.map((b) => b.broker ?? "XTB"))].sort(),
+    kinds: kindRows.map((k) => k.category!).sort(),
+  };
 
   if (etfAssets === 0 && totalAssets > 0) {
     return NextResponse.json({
       needsReupload: true,
+      available,
+      byBroker: [],
       hasInvestmentPlans: false,
       summary: null,
       byCategory: [],
@@ -125,21 +135,79 @@ export async function GET(req: NextRequest) {
     lucro: Math.round(profit * 100) / 100,
   }));
 
-  const tickerMap = new Map<string, { name: string | null; units: number; invested: number; current: number }>();
+  type Part = { units: number; invested: number; current: number };
+  type LotRow = { openedAt: string | null; broker: string; product: string | null; units: number; invested: number; current: number };
+  const emptyPart = (): Part => ({ units: 0, invested: 0, current: 0 });
+  const tickerMap = new Map<
+    string,
+    Part & {
+      name: string | null;
+      category: string | null;
+      brokers: Map<string, Part>;
+      lots: LotRow[];
+    }
+  >();
   for (const a of assets) {
-    const cur = tickerMap.get(a.ticker) ?? { name: a.name, units: 0, invested: 0, current: 0 };
+    const broker = a.broker ?? "XTB";
+    const cur = tickerMap.get(a.ticker) ?? { name: a.name, category: a.category, ...emptyPart(), brokers: new Map<string, Part>(), lots: [] as LotRow[] };
+    // Cada compra (lote ainda aberto), para as sublinhas da tabela
+    cur.lots.push({
+      openedAt: a.openedAt?.toISOString() ?? null,
+      broker,
+      product: a.product,
+      units: a.quantity,
+      invested: a.investedValue,
+      current: a.currentValue,
+    });
     cur.units += a.quantity;
     cur.invested += a.investedValue;
     cur.current += a.currentValue;
+    const part = cur.brokers.get(broker) ?? emptyPart();
+    part.units += a.quantity;
+    part.invested += a.investedValue;
+    part.current += a.currentValue;
+    cur.brokers.set(broker, part);
     tickerMap.set(a.ticker, cur);
   }
   const byTicker = Array.from(tickerMap.entries())
-    .map(([ticker, v]) => ({ ticker, name: v.name, units: v.units, invested: v.invested, current: v.current }))
+    .map(([ticker, v]) => ({
+      ticker,
+      name: v.name,
+      category: v.category,
+      units: v.units,
+      invested: v.invested,
+      current: v.current,
+      brokers: [...v.brokers.entries()].map(([broker, p]) => ({ broker, ...p })).sort((a, b) => a.broker.localeCompare(b.broker)),
+      lots: v.lots.sort((a, b) => (a.openedAt ?? "").localeCompare(b.openedAt ?? "")),
+    }))
+    .sort((a, b) => b.current - a.current);
+
+  // Totais por corretora
+  const brokerMap = new Map<string, Part & { positions: Set<string> }>();
+  for (const a of assets) {
+    const broker = a.broker ?? "XTB";
+    const cur = brokerMap.get(broker) ?? { ...emptyPart(), positions: new Set<string>() };
+    cur.units += a.quantity;
+    cur.invested += a.investedValue;
+    cur.current += a.currentValue;
+    cur.positions.add(a.ticker);
+    brokerMap.set(broker, cur);
+  }
+  const byBroker = [...brokerMap.entries()]
+    .map(([broker, v]) => ({
+      broker,
+      positions: v.positions.size,
+      invested: v.invested,
+      current: v.current,
+      profit: v.current - v.invested,
+      profitPercent: v.invested > 0 ? ((v.current - v.invested) / v.invested) * 100 : 0,
+      weight: totalCurrent > 0 ? (v.current / totalCurrent) * 100 : 0,
+    }))
     .sort((a, b) => b.current - a.current);
 
   const indexGroupMap = new Map<string, { invested: number; current: number; units: number }>();
   for (const a of assets) {
-    const groupName = getDisplayNameForTicker(a.ticker);
+    const groupName = a.category === "STOCK" ? "Ações individuais" : getDisplayNameForTicker(a.ticker);
     const cur = indexGroupMap.get(groupName) ?? { invested: 0, current: 0, units: 0 };
     cur.invested += a.investedValue;
     cur.current += a.currentValue;
@@ -158,6 +226,8 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     hasInvestmentPlans: planAssets > 0,
+    available,
+    byBroker,
     summary,
     byCategory,
     byYear,

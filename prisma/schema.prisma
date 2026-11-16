@@ -79,6 +79,27 @@ model UploadedFile {
   userId String
   user   User   @relation(fields: [userId], references: [id])
 
+  assets    Asset[]
+  documents BrokerDocument[]
+}
+
+/// Documento de uma corretora dentro de uma entrada (UploadedFile).
+/// Uma entrada pode juntar um relatório XTB e um ou mais CSV da Trading 212.
+model BrokerDocument {
+  id         String    @id @default(cuid())
+  /// "XTB" ou "T212"
+  broker     String
+  fileName   String
+  uploadedAt DateTime  @default(now())
+  /// XTB: data do relatório. T212: data da importação.
+  reportDate DateTime?
+  /// T212: ordens de compra/venda do CSV (ver lib/t212Parser.ts); as posições são recalculadas
+  /// a partir da união das ordens de todos os CSV da entrada (sem duplicados, pelo ID da ordem).
+  transactions Json?
+
+  fileId String
+  file   UploadedFile @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
   assets Asset[]
 }
 
@@ -98,9 +119,14 @@ model Asset {
   openedAt      DateTime?
   /// Produto XTB: "My Trades" ou "Investment Plan" (null em uploads antigos = My Trades).
   product       String?
+  /// "XTB" ou "T212" (null em uploads antigos = XTB).
+  broker        String?
 
   fileId String
   file   UploadedFile @relation(fields: [fileId], references: [id])
+
+  documentId String?
+  document   BrokerDocument? @relation(fields: [documentId], references: [id], onDelete: Cascade)
 }
 /// Cache de fechos diários do Yahoo Finance, já convertidos para EUR.
 /// Uma linha por símbolo; `closes` = [["YYYY-MM-DD", fecho], ...] ordenado por data.

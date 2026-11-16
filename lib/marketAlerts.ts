@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { fetchDropFromHigh, type DropFromHigh } from "@/lib/yahoo";
 
-/** Alerta quando um ETF está mais de X% abaixo do máximo das últimas 52 semanas. */
+/** Alerta quando um ETF ou ação está mais de X% abaixo do máximo das últimas 52 semanas. */
 export const DROP_THRESHOLD_PCT = 10;
 
 /**
@@ -14,8 +14,8 @@ export const REARM_THRESHOLD_PCT = 8;
 export const ALERT_HOURS_LISBON = [9, 12, 14];
 
 /**
- * Garante que a lista de ETFs vigiados inclui os ETFs do último ficheiro carregado.
- * ETFs novos entram ligados; os que o utilizador desligou ficam como estão.
+ * Garante que a lista vigiada inclui os ETFs e ações do último ficheiro carregado
+ * (todas as corretoras da entrada). Novos entram ligados; os desligados ficam como estão.
  */
 export async function syncWatchlist(userId: string) {
   const latest = await prisma.uploadedFile.findFirst({
@@ -25,7 +25,11 @@ export async function syncWatchlist(userId: string) {
       id: true,
       fileName: true,
       uploadedAt: true,
-      assets: { where: { category: "ETF" }, select: { ticker: true, name: true }, distinct: ["ticker"] },
+      assets: {
+        where: { category: { in: ["ETF", "STOCK"] } },
+        select: { ticker: true, name: true, category: true },
+        distinct: ["ticker"],
+      },
     },
   });
   if (latest && latest.assets.length) {
@@ -35,10 +39,15 @@ export async function syncWatchlist(userId: string) {
     });
   }
   const watches = await prisma.alertWatch.findMany({ where: { userId }, orderBy: { ticker: "asc" } });
-  const inLatest = new Set(latest?.assets.map((a) => a.ticker) ?? []);
+  const categoryOf = new Map(latest?.assets.map((a) => [a.ticker, a.category]) ?? []);
   return {
     sourceFile: latest ? { fileName: latest.fileName, uploadedAt: latest.uploadedAt } : null,
-    watches: watches.map((w) => ({ ...w, inLatestFile: inLatest.has(w.ticker) })),
+    watches: watches.map((w) => ({
+      ...w,
+      inLatestFile: categoryOf.has(w.ticker),
+      /** "ETF" | "STOCK" | null (já não está no último ficheiro) */
+      category: categoryOf.get(w.ticker) ?? null,
+    })),
   };
 }
 
@@ -61,13 +70,13 @@ export async function checkTickers(tickers: string[]): Promise<TickerCheck[]> {
 
 const pct = (n: number) => `${n.toFixed(1).replace(".", ",")}%`;
 
-/** Texto da notificação para os ETFs em queda. */
+/** Texto da notificação para os ETFs/ações em queda. */
 export function buildDropNotification(dropping: Extract<TickerCheck, { ok: true }>[]) {
   const sorted = [...dropping].sort((a, b) => a.changePct - b.changePct);
   const n = sorted.length;
   return {
-    title: `${n} ETF${n > 1 ? "s" : ""} em queda de mais de ${DROP_THRESHOLD_PCT}%`,
-    body: sorted.map((d) => `${d.ticker} ${pct(d.changePct)} face ao máximo de 52 semanas`).join("\n"),
+    title: `${n} ${n > 1 ? "ativos" : "ativo"} em queda de mais de ${DROP_THRESHOLD_PCT}%`,
+    body: sorted.map((d) => `${d.ticker.split(".")[0]} ${pct(d.changePct)} face ao máximo de 52 semanas`).join("\n"),
     url: "/",
     tag: "market-drop",
   };

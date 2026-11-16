@@ -13,6 +13,8 @@ type Etf = {
   name: string | null;
   currency: string;
   price: number | null;
+  kind?: string;
+  radar?: { quality: number | null; valuation: number | null; qualityLabel: string; valuationLabel: string } | null;
   ter: number | null;
   score: number | null;
   label: string;
@@ -66,7 +68,7 @@ function ScoreLegend() {
           ))}
         </dl>
         <div className="text-muted">
-          A nota compara o preço de hoje com o próprio histórico do ETF. Num plano de investimento mensal, uma nota baixa
+          A nota compara o preço de hoje com o próprio histórico do ETF ou da ação. Num plano de investimento mensal, uma nota baixa
           não quer dizer que pares; quer dizer que agora não há desconto para aproveitar com um reforço extra.
         </div>
       </div>
@@ -82,7 +84,10 @@ function EtfCard({ etf }: { etf: Etf }) {
       <div className="card-body">
         <div className="d-flex justify-content-between align-items-start gap-2">
           <div className="min-w-0">
-            <div className="fw-bold">{etf.ticker}</div>
+            <div className="fw-bold">
+              {etf.ticker.split(".")[0]}
+              {etf.kind === "STOCK" && <span className="badge text-bg-primary ms-2 align-middle">Ação</span>}
+            </div>
             <div className="small text-muted text-truncate">{etf.name ?? ""}</div>
           </div>
           <div className="text-end">
@@ -104,6 +109,11 @@ function EtfCard({ etf }: { etf: Etf }) {
           {etf.ter !== null && (
             <span className="badge text-bg-light border" title="Custo de gestão anual (TER)">
               TER {nf(etf.ter, 2)}%/ano
+            </span>
+          )}
+          {etf.radar && (
+            <span className="badge text-bg-light border" title="Notas do radar de ações (S&P 500)">
+              Radar: qualidade {etf.radar.quality ?? "—"} · valuation {etf.radar.valuation ?? "—"}
             </span>
           )}
           {etf.alert.droppingOver10 && (
@@ -212,27 +222,37 @@ export function ReinforcePanel() {
     );
   }
   if (data.etfs.length === 0) {
-    return <p className="text-muted small mb-0">Carrega um ficheiro da XTB para ver os teus ETFs aqui.</p>;
+    return <p className="text-muted small mb-0">Carrega um ficheiro da XTB ou da Trading 212 para ver os teus ETFs e ações aqui.</p>;
   }
 
   return (
     <div>
       <p className="small text-muted">
-        Para cada ETF da carteira ({data.sourceFile?.fileName ?? "último ficheiro"}), uma nota de 0 a 100 de quão boa é a
+        Para cada ETF e ação da carteira ({data.sourceFile?.fileName ?? "último ficheiro"}), uma nota de 0 a 100 de quão boa é a
         altura para reforçar, face ao próprio histórico: desconto face ao máximo de 52 semanas (30%), distância à média
         de 200 dias (25%), RSI de 14 dias (15%) e posição no intervalo do último ano (10%). Nos ETFs do S&amp;P 500 entra
-        também o P/E do índice face à mediana de 5 anos (20%), calculado com as ações do radar. Mostra descontos, não
+        também o P/E do índice face à mediana de 5 anos (20%), calculado com as ações do radar; nas ações do S&amp;P 500 entra a nota de Valuation do radar (20%). Mostra descontos, não
         prevê o futuro. Cotações às{" "}
         {new Date(data.checkedAt).toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" })}.
       </p>
       <ScoreLegend />
-      <div className="row g-3">
-        {data.etfs.map((e) => (
-          <div key={e.ticker} className="col-12 col-md-6 col-xl-4">
-            <EtfCard etf={e} />
-          </div>
+      {[
+        { title: "ETFs", items: data.etfs.filter((e) => e.kind !== "STOCK") },
+        { title: "Ações", items: data.etfs.filter((e) => e.kind === "STOCK") },
+      ]
+        .filter((g) => g.items.length > 0)
+        .map((g) => (
+          <section key={g.title} className="mb-4">
+            <h3 className="h6 mb-2">{g.title}</h3>
+            <div className="row g-3">
+              {g.items.map((e) => (
+                <div key={e.ticker} className="col-12 col-md-6 col-xl-4">
+                  <EtfCard etf={e} />
+                </div>
+              ))}
+            </div>
+          </section>
         ))}
-      </div>
     </div>
   );
 }

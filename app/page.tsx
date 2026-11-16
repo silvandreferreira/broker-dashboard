@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { useCache, resetIncludePlans } from "./contexts/CacheContext";
 import { AdminPanel } from "./components/AdminPanel";
@@ -49,6 +49,11 @@ export default function Home() {
   const [selectingFileId, setSelectingFileId] = useState<string | null>(null);
   const [selectProgress, setSelectProgress] = useState(0);
   const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
+  const [deletingDocId, setDeletingDocId] = useState<string | null>(null);
+  /** "" = nova entrada; senão, id da entrada a que se junta o ficheiro */
+  const [targetEntryId, setTargetEntryId] = useState("");
+  const [notice, setNotice] = useState<string[] | null>(null);
+  const uploadFormRef = useRef<HTMLFormElement>(null);
 
   const files = cachedFiles?.files ?? [];
   const activeFileId = cachedFiles?.activeFileId ?? null;
@@ -85,12 +90,14 @@ export default function Home() {
       | null;
     const file = fileInput?.files?.[0];
     if (!file) {
-      setError("Escolhe um ficheiro XLSX primeiro.");
+      setError("Escolhe um ficheiro primeiro (.xlsx da XTB ou .csv da Trading 212).");
       return;
     }
+    const target = files.some((f) => f.id === targetEntryId) ? targetEntryId : "";
 
     const formData = new FormData();
     formData.append("file", file);
+    if (target) formData.append("entryId", target);
 
     try {
       setIsUploading(true);
@@ -99,13 +106,21 @@ export default function Home() {
         method: "POST",
         body: formData,
       });
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
         throw new Error(data.error || "Falha no upload do ficheiro");
       }
+      const broker = data.broker === "T212" ? "Trading 212" : "XTB";
+      const summary =
+        data.broker === "T212"
+          ? `${broker}: ${data.transactions} ordens lidas, ${data.positions} posições abertas.`
+          : `${broker}: ${data.rows} posições importadas.`;
+      setNotice([target ? `Juntado à entrada existente. ${summary}` : `Entrada nova criada. ${summary}`, ...(data.warnings ?? [])]);
+      if (target) invalidateDashboard(target);
       invalidateFiles();
       await loadFiles();
       setActiveTab("dashboard");
+      setTargetEntryId("");
       form.reset();
     } catch (e: unknown) {
       console.error(e);
@@ -196,6 +211,38 @@ export default function Home() {
     }
   };
 
+  const handleDeleteDocument = async (entryId: string, docId: string, label: string) => {
+    if (deletingDocId) return;
+    if (!window.confirm(`Remover «${label}» desta entrada?\n\nAs posições desta corretora saem do dashboard desta entrada.`)) return;
+    setDeletingDocId(docId);
+    setError(null);
+    try {
+      const res = await fetch("/api/files/documents/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ documentId: docId }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Falha ao remover o documento");
+      }
+      invalidateDashboard(entryId);
+      invalidateFiles();
+      await loadFiles();
+    } catch (e: unknown) {
+      console.error(e);
+      setError(e instanceof Error ? e.message : "Erro ao remover o documento.");
+    } finally {
+      setDeletingDocId(null);
+    }
+  };
+
+  const startAddBroker = (entryId: string) => {
+    setTargetEntryId(entryId);
+    uploadFormRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    (uploadFormRef.current?.elements.namedItem("file") as HTMLInputElement | null)?.focus();
+  };
+
   if (!session) {
     return (
       <div className="container py-5">
@@ -278,7 +325,7 @@ export default function Home() {
             onClick={() => setActiveTab("upload")}
           >
             <i className="bi bi-upload me-1" />
-            Upload XLSX
+            Carregar
           </button>
         </li>
         <li className="nav-item" role="presentation">
@@ -347,6 +394,15 @@ export default function Home() {
         </div>
       )}
 
+      {notice && (
+        <div className="alert alert-info alert-dismissible fade show small" role="status">
+          {notice.map((n, i) => (
+            <div key={i}>{n}</div>
+          ))}
+          <button type="button" className="btn-close" onClick={() => setNotice(null)} aria-label="Fechar" />
+        </div>
+      )}
+
       {activeTab === "upload" && (
         <div className="row g-4">
           <div className="col-12">
@@ -354,18 +410,42 @@ export default function Home() {
               <div className="card-body">
                 <h2 className="h5 card-title mb-2">
                   <i className="bi bi-file-earmark-spreadsheet text-primary me-2" />
-                  Carregar relatório XTB (XLSX)
+                  Carregar relatório (XTB ou Trading 212)
                 </h2>
                 <p className="text-muted small mb-3">
-                  Faz upload do relatório Excel (.xlsx) do XTB (Open Position). Os dados são
-                  guardados em base de dados, não guardamos o ficheiro em si.
+                  XTB: relatório Excel (.xlsx) do xStation 5 (Open Positions). Trading 212: histórico em CSV
+                  (Histórico → Exportar). A corretora é detetada pelo ficheiro. Podes criar uma entrada nova ou
+                  juntar o ficheiro a uma entrada existente, para veres as duas corretoras no mesmo dashboard.
+                  Guardamos só os dados, não o ficheiro.
                 </p>
-                <form onSubmit={handleUpload} className="row g-2 align-items-end">
-                  <div className="col-auto">
+                <form ref={uploadFormRef} onSubmit={handleUpload} className="row g-2 align-items-end">
+                  <div className="col-12 col-md-auto">
+                    <label className="form-label small mb-1" htmlFor="upload-target">
+                      Destino
+                    </label>
+                    <select
+                      id="upload-target"
+                      className="form-select form-select-sm"
+                      value={files.some((f) => f.id === targetEntryId) ? targetEntryId : ""}
+                      onChange={(e) => setTargetEntryId(e.target.value)}
+                    >
+                      <option value="">Nova entrada</option>
+                      {files.map((f) => (
+                        <option key={f.id} value={f.id}>
+                          Juntar a: {f.fileName}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="col-12 col-md-auto">
+                    <label className="form-label small mb-1" htmlFor="upload-file">
+                      Ficheiro
+                    </label>
                     <input
+                      id="upload-file"
                       type="file"
                       name="file"
-                      accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                      accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                       className="form-control form-control-sm"
                     />
                   </div>
@@ -404,7 +484,7 @@ export default function Home() {
               <div className="card-body">
                 {files.length === 0 ? (
                   <p className="text-muted small mb-0">
-                    Ainda não tens nenhum ficheiro XLSX carregado.
+                    Ainda não tens nenhum ficheiro carregado.
                   </p>
                 ) : (
                   <ul className="list-group list-group-flush">
@@ -423,6 +503,37 @@ export default function Home() {
                           <div className="small text-muted mt-1">
                             {new Date(file.uploadedAt).toLocaleString()} · {file._count.assets} linhas
                           </div>
+                          {(file.documents?.length ?? 0) > 0 && (
+                            <div className="d-flex flex-wrap gap-1 mt-2">
+                              {file.documents!.map((d) => {
+                                const label = `${d.broker === "T212" ? "Trading 212" : "XTB"} · ${d.fileName}`;
+                                return (
+                                  <span key={d.id} className="badge text-bg-light border d-inline-flex align-items-center gap-1 fw-normal">
+                                    <span className="fw-semibold">{d.broker === "T212" ? "Trading 212" : "XTB"}</span>
+                                    <span className="text-truncate" style={{ maxWidth: 200 }} title={d.fileName}>
+                                      {d.fileName}
+                                    </span>
+                                    {file.documents!.length > 1 && (
+                                      <button
+                                        type="button"
+                                        className="btn btn-link btn-sm p-0 text-danger lh-1"
+                                        onClick={() => void handleDeleteDocument(file.id, d.id, label)}
+                                        disabled={deletingDocId !== null}
+                                        aria-label={`Remover ${label}`}
+                                        title="Remover este documento da entrada"
+                                      >
+                                        {deletingDocId === d.id ? (
+                                          <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" />
+                                        ) : (
+                                          <i className="bi bi-x-circle" />
+                                        )}
+                                      </button>
+                                    )}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          )}
                         </div>
                         <div className="mt-2 mt-md-0 flex-shrink-0 d-flex flex-column flex-md-row gap-2">
                           <button
@@ -465,6 +576,17 @@ export default function Home() {
 
                           <button
                             type="button"
+                            onClick={() => startAddBroker(file.id)}
+                            disabled={selectingFileId !== null || deletingFileId !== null}
+                            className="btn btn-sm btn-outline-primary w-100 w-md-auto text-nowrap"
+                            title="Juntar o ficheiro de outra corretora a esta entrada"
+                          >
+                            <i className="bi bi-plus-lg me-1" />
+                            Adicionar corretora
+                          </button>
+
+                          <button
+                            type="button"
                             onClick={() => void handleDeleteFile(file.id)}
                             disabled={selectingFileId !== null || deletingFileId !== null}
                             className="btn btn-sm btn-outline-danger w-100 w-md-auto"
@@ -498,7 +620,7 @@ export default function Home() {
           <div className="card-body">
             {!activeFileId ? (
               <p className="text-muted small mb-0">
-                Ainda não selecionaste nenhum ficheiro. Vai à tab &quot;Upload XLSX&quot; para
+                Ainda não selecionaste nenhum ficheiro. Vai à tab &quot;Carregar&quot; para
                 carregar ou escolher um ficheiro.
               </p>
             ) : (
