@@ -12,9 +12,9 @@ export type KindFilter = "all" | "ETF" | "STOCK";
 
 export type DashboardFilters = { includePlans: boolean; broker: BrokerFilter; kind: KindFilter };
 
-/** `?includePlans=false` exclui planos de investimento; por defeito são incluídos. */
+/** `?includePlans=true` inclui planos de investimento; por defeito são excluídos. */
 export function parseIncludePlans(searchParams: URLSearchParams): boolean {
-  return searchParams.get("includePlans") !== "false";
+  return searchParams.get("includePlans") === "true";
 }
 
 /** `?includePlans=…&broker=all|XTB|T212&kind=all|ETF|STOCK` */
